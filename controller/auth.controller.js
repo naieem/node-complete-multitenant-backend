@@ -6,7 +6,9 @@ module.exports = {
     register: register,
     login: login,
     getLoggedInUserInfo: getLoggedInUserInfo,
-    logout: logout
+    logout: logout,
+    getsecurityPermission:getsecurityPermission,
+    changesecurityPermission:changesecurityPermission
 }
 
 /**
@@ -163,4 +165,28 @@ function logout(req, res) {
                 .status(500)
                 .send(err);
         });
+}
+/**
+ * getting the security permission information
+ * @param {*} req 
+ * @param {*} res 
+ */
+function getsecurityPermission(req,res){
+    authService.getsecurityPermission(req).then((result)=>{
+        res.status(200).send(result);
+    }).catch((err)=>{
+        res.status(200).send(err);
+    });
+}
+/**
+ * changing security permission information
+ * @param {*} req 
+ * @param {*} res 
+ */
+function changesecurityPermission(req,res){
+    authService.changesecurityPermission(req).then((result)=>{
+        res.status(200).send(result);
+    }).catch((err)=>{
+        res.status(200).send(err);
+    });
 }

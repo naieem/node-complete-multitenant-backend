@@ -27,6 +27,8 @@ router.get('/', function(req, res, next) {
 });
 
 router.post('/register', middleware.validatetoken, autoController.register);
+router.post('/getsecurityPermission', middleware.validatetoken, autoController.getsecurityPermission);
+router.post('/changesecurityPermission', middleware.validatetoken, autoController.changesecurityPermission);
 router.post('/login', autoController.login);
 router.post('/logout', middleware.validatetoken, autoController.logout);
 router.post('/getloggeInUserInfo', autoController.getLoggedInUserInfo);
