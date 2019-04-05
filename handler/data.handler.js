@@ -52,67 +52,75 @@ function insert(request) {
     // removing the permissions if some hacker tries to add them with data source
     data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
     return new Promise(function(resolve, reject) {
-        checkTagValidator(request).then(result => {
-            if (result) {
-                if (restrictedTables.includes(tablename)) {
-                    reject({
-                        status: false,
-                        message: "you are not allowed to perform any kind of action to " + tablename + " table"
-                    });
-                }
-                if (!data._id) {
-                    reject({ status: false, message: "no item id found in the payload" });
-                }
-                /**
-                 * checking permission whether the current token user has permission to do action
-                 */
-                checkPermission(request, "insert").then(result => {
+        if(tables[origin][tablename]){
+            checkTagValidator(request).then(result => {
+                if (result) {
+                    if (restrictedTables.includes(tablename)) {
+                        reject({
+                            status: false,
+                            message: "you are not allowed to perform any kind of action to " + tablename + " table"
+                        });
+                    }
+                    if (!data._id) {
+                        reject({ status: false, message: "no item id found in the payload" });
+                    }
                     /**
-                     * getting default permission set for the table
+                     * checking permission whether the current token user has permission to do action
                      */
-                    getDefaultPermission(tablename).then(defaultPermissions => {
+                    checkPermission(request, "insert").then(result => {
                         /**
-                         * adding default permissions with the data to be saved
+                         * getting default permission set for the table
                          */
-                        if (defaultPermissions) {
-                            Object
-                                .keys(defaultPermissions)
-                                .forEach(function(key, idx) {
-                                    if (defaultPermissions[key] == "owner") {
-                                        data[key] = request.userInfo.userId;
-                                    } else {
-                                        data[key] = defaultPermissions[key];
+                        getDefaultPermission(tablename).then(defaultPermissions => {
+                            /**
+                             * adding default permissions with the data to be saved
+                             */
+                            if (defaultPermissions) {
+                                Object
+                                    .keys(defaultPermissions)
+                                    .forEach(function(key, idx) {
+                                        if (defaultPermissions[key] == "owner") {
+                                            data[key] = request.userInfo.userId;
+                                        } else {
+                                            data[key] = defaultPermissions[key];
+                                        }
+                                    });
+    
+                                tables[origin][tablename].create(data, function(err, docs) {
+                                    if (err) {
+                                        if (err.code == 11000)
+                                            return reject({ status: false, message: "Duplicate item id found" });
                                     }
+                                    return resolve({ status: true, itemId: docs._id });
                                 });
-
-                            tables[origin][tablename].create(data, function(err, docs) {
-                                if (err) {
-                                    if (err.code == 11000)
-                                        return reject({ status: false, message: "Duplicate item id found" });
-                                }
-                                return resolve({ status: true, itemId: docs._id });
-                            });
-                        } else {
-                            resolve({
-                                status: false,
-                                message: "sorry no default permission found for the table " + tablename
-                            });
-                        }
+                            } else {
+                                resolve({
+                                    status: false,
+                                    message: "sorry no default permission found for the table " + tablename
+                                });
+                            }
+                        }).catch(error => {
+                            reject(error);
+                        });
                     }).catch(error => {
                         reject(error);
                     });
-                }).catch(error => {
-                    reject(error);
-                });
-            } else {
-                reject({
-                    status: false,
-                    message: "Tag Validation faild for " + tag
-                });
-            }
-        }).catch(error => {
-            reject(error);
-        });
+                } else {
+                    reject({
+                        status: false,
+                        message: "Tag Validation faild for " + tag
+                    });
+                }
+            }).catch(error => {
+                reject(error);
+            });
+        }
+        else{
+            resolve({
+                status:false,
+                message:"No table found with name "+ tablename
+            });
+        }
     });
 }
 /**
@@ -129,48 +137,57 @@ function update(request) {
         // removing the permissions if some hacker tries to add them with data source
         data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
         data.updated_at = new Date();
-        checkTagValidator(request).then(result => {
-            if (result) {
-                if (restrictedTables.includes(tablename)) {
-                    reject({
-                        status: false,
-                        message: "you are not allowed to perform any kind of action to " + tablename + " table"
-                    });
-                }
-                if (!data._id) {
-                    reject({ status: false, message: "no item id found in the payload" });
-                } else {
-                    checkPermission(request, "update").then(res => {
-                        checkPermissionToUpdate(tablename, data._id, currenUserRole, currentUserId, request).then(result => {
-                            changeObserver(request).then(observerResponse => {
-                                if (observerResponse) {
-                                    tables[origin][tablename].updateOne({
-                                        _id: data._id
-                                    }, data, (err, response) => {
-                                        if (err)
-                                            return reject(err);
-
-                                        if (response.ok)
-                                            resolve({ status: true, itemId: data._id, message: "update fuccessfull" });
-                                    });
-                                }
+        if(tables[origin][tablename]){
+            checkTagValidator(request).then(result => {
+                if (result) {
+                    if (restrictedTables.includes(tablename)) {
+                        reject({
+                            status: false,
+                            message: "you are not allowed to perform any kind of action to " + tablename + " table"
+                        });
+                    }
+                    if (!data._id) {
+                        reject({ status: false, message: "no item id found in the payload" });
+                    } else {
+                        checkPermission(request, "update").then(res => {
+                            checkPermissionToUpdate(tablename, data._id, currenUserRole, currentUserId, request).then(result => {
+                                changeObserver(request).then(observerResponse => {
+                                    if (observerResponse) {
+                                        tables[origin][tablename].updateOne({
+                                            _id: data._id
+                                        }, data, (err, response) => {
+                                            if (err)
+                                                return reject(err);
+    
+                                            if (response.ok)
+                                                resolve({ status: true, itemId: data._id, message: "update fuccessfull" });
+                                        });
+                                    }
+                                });
+                            }).catch(err => {
+                                reject(err);
                             });
                         }).catch(err => {
                             reject(err);
                         });
-                    }).catch(err => {
-                        reject(err);
+                    }
+                } else {
+                    reject({
+                        status: false,
+                        message: "Tag Validation faild for " + tag
                     });
                 }
-            } else {
-                reject({
-                    status: false,
-                    message: "Tag Validation faild for " + tag
-                });
-            }
-        }).catch(err => {
-            reject(err);
-        });
+            }).catch(err => {
+                reject(err);
+            });
+        }
+        else{
+            resolve({
+                status:false,
+                message:"No table found with name "+ tablename
+            });
+        }
+        
     });
 }
 
@@ -251,7 +268,8 @@ function getData(request) {
         request.body.fields :
         null;
     return new Promise(function(resolve, reject) {
-        getUserReadableData(tablename)
+        if(tables[origin][tablename]){
+            getUserReadableData(tablename)
             .then(function(readableFields) {
                 /** if fields presents in the request body then check that first
                  * else use the user readable fields coming from table userreadable data fields
@@ -299,6 +317,12 @@ function getData(request) {
             .catch(function(err) {
                 reject(err);
             });
+        }else{
+            resolve({
+                status:false,
+                message:"No table found with name "+ tablename
+            });
+        }
     });
 }
 
@@ -355,42 +379,42 @@ function pullDataWithFields(tablename, query, fields, page, rowsPerPage, populat
         0 :
         rowsPerPage * page;
     let populationFields = [];
-    let dataQuery = tables[origin][tablename].find(query, fields);
-    // configuring populating config
-    if (populateConfig && populateConfig.length) {
-        populateConfig.forEach(populate => {
-            if (populate.property && populate.fields.length) {
-                populationFields = populate.fields.length ?
-                    removeSecurityFieldsFromPopulation(populate.fields) :
-                    null;
-                if (populationFields.length) {
-                    populationFields = populationFields.join(" ");
-                    dataQuery.populate(populate.property, populationFields);
+        let dataQuery = tables[origin][tablename].find(query, fields);
+        // configuring populating config
+        if (populateConfig && populateConfig.length) {
+            populateConfig.forEach(populate => {
+                if (populate.property && populate.fields.length) {
+                    populationFields = populate.fields.length ?
+                        removeSecurityFieldsFromPopulation(populate.fields) :
+                        null;
+                    if (populationFields.length) {
+                        populationFields = populationFields.join(" ");
+                        dataQuery.populate(populate.property, populationFields);
+                    }
                 }
-            }
-        });
-    }
-    if (request.body.orderBy) {
-        if (request.body.orderType) {
-            if (request.body.orderType == 'ASC') {
-                dataQuery.sort(request.body.orderBy);
-            } else if (request.body.orderType == 'DESC') {
-                dataQuery.sort('-' + request.body.orderBy);
-            }
-        } else {
-            dataQuery.sort(request.body.orderBy);
-        }
-    }
-    return new Promise((resolve, reject) => {
-        dataQuery
-            .skip(skip)
-            .limit(rowsPerPage)
-            .exec((err, docs) => {
-                if (err)
-                    reject(err);
-                resolve(docs);
             });
-    });
+        }
+        if (request.body.orderBy) {
+            if (request.body.orderType) {
+                if (request.body.orderType == 'ASC') {
+                    dataQuery.sort(request.body.orderBy);
+                } else if (request.body.orderType == 'DESC') {
+                    dataQuery.sort('-' + request.body.orderBy);
+                }
+            } else {
+                dataQuery.sort(request.body.orderBy);
+            }
+        }
+        return new Promise((resolve, reject) => {
+            dataQuery
+                .skip(skip)
+                .limit(rowsPerPage)
+                .exec((err, docs) => {
+                    if (err)
+                        reject(err);
+                    resolve(docs);
+                });
+        });
 }
 /**
  * Getting total number of count
