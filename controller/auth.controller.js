@@ -7,8 +7,8 @@ module.exports = {
     login: login,
     getLoggedInUserInfo: getLoggedInUserInfo,
     logout: logout,
-    getsecurityPermission:getsecurityPermission,
-    changesecurityPermission:changesecurityPermission
+    getsecurityPermission: getsecurityPermission,
+    changesecurityPermission: changesecurityPermission
 }
 
 /**
@@ -83,7 +83,7 @@ function doUserRegistration(req, res) {
                 req.body.personInfo['user_id'] = userId;
                 req.body.personInfo['roles'] = req.body.roles;
                 authService
-                    .register(userInfo, req.body.personInfo)
+                    .register(userInfo, req.body.personInfo, req)
                     .then(function(result) {
                         res
                             .status(200)
@@ -171,10 +171,10 @@ function logout(req, res) {
  * @param {*} req 
  * @param {*} res 
  */
-function getsecurityPermission(req,res){
-    authService.getsecurityPermission(req).then((result)=>{
+function getsecurityPermission(req, res) {
+    authService.getsecurityPermission(req).then((result) => {
         res.status(200).send(result);
-    }).catch((err)=>{
+    }).catch((err) => {
         res.status(200).send(err);
     });
 }
@@ -183,10 +183,10 @@ function getsecurityPermission(req,res){
  * @param {*} req 
  * @param {*} res 
  */
-function changesecurityPermission(req,res){
-    authService.changesecurityPermission(req).then((result)=>{
+function changesecurityPermission(req, res) {
+    authService.changesecurityPermission(req).then((result) => {
         res.status(200).send(result);
-    }).catch((err)=>{
+    }).catch((err) => {
         res.status(200).send(err);
     });
 }

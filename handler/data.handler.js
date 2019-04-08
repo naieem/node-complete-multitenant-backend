@@ -37,7 +37,8 @@ module.exports = {
     getRelationData: getRelationData,
     uploadFileHandler: uploadFileHandler,
     getFiles: getFiles,
-    getFeatures: getFeatures
+    getFeatures: getFeatures,
+    getDefaultPermission: getDefaultPermission
 };
 /**
  * inserting data in the table
@@ -52,7 +53,7 @@ function insert(request) {
     // removing the permissions if some hacker tries to add them with data source
     data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
     return new Promise(function(resolve, reject) {
-        if(tables[origin][tablename]){
+        if (tables[origin][tablename]) {
             checkTagValidator(request).then(result => {
                 if (result) {
                     if (restrictedTables.includes(tablename)) {
@@ -85,7 +86,7 @@ function insert(request) {
                                             data[key] = defaultPermissions[key];
                                         }
                                     });
-    
+
                                 tables[origin][tablename].create(data, function(err, docs) {
                                     if (err) {
                                         if (err.code == 11000)
@@ -114,11 +115,10 @@ function insert(request) {
             }).catch(error => {
                 reject(error);
             });
-        }
-        else{
+        } else {
             resolve({
-                status:false,
-                message:"No table found with name "+ tablename
+                status: false,
+                message: "No table found with name " + tablename
             });
         }
     });
@@ -137,7 +137,7 @@ function update(request) {
         // removing the permissions if some hacker tries to add them with data source
         data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
         data.updated_at = new Date();
-        if(tables[origin][tablename]){
+        if (tables[origin][tablename]) {
             checkTagValidator(request).then(result => {
                 if (result) {
                     if (restrictedTables.includes(tablename)) {
@@ -158,7 +158,7 @@ function update(request) {
                                         }, data, (err, response) => {
                                             if (err)
                                                 return reject(err);
-    
+
                                             if (response.ok)
                                                 resolve({ status: true, itemId: data._id, message: "update fuccessfull" });
                                         });
@@ -180,14 +180,13 @@ function update(request) {
             }).catch(err => {
                 reject(err);
             });
-        }
-        else{
+        } else {
             resolve({
-                status:false,
-                message:"No table found with name "+ tablename
+                status: false,
+                message: "No table found with name " + tablename
             });
         }
-        
+
     });
 }
 
@@ -268,59 +267,59 @@ function getData(request) {
         request.body.fields :
         null;
     return new Promise(function(resolve, reject) {
-        if(tables[origin][tablename]){
+        if (tables[origin][tablename]) {
             getUserReadableData(tablename)
-            .then(function(readableFields) {
-                /** if fields presents in the request body then check that first
-                 * else use the user readable fields coming from table userreadable data fields
-                 */
-                if (fields) {
-                    var falseList = [];
-                    fields.forEach(element => {
-                        let ispresent = readableFields.includes(element);
-                        if (!ispresent) {
-                            falseList.push(element);
+                .then(function(readableFields) {
+                    /** if fields presents in the request body then check that first
+                     * else use the user readable fields coming from table userreadable data fields
+                     */
+                    if (fields) {
+                        var falseList = [];
+                        fields.forEach(element => {
+                            let ispresent = readableFields.includes(element);
+                            if (!ispresent) {
+                                falseList.push(element);
+                            }
+                        });
+                        if (falseList.length) {
+                            reject({ status: false, fields: falseList, message: "your query fields are not present in the user readable list" });
+                        } else {
+                            queryfields = fields.join(" ");
                         }
-                    });
-                    if (falseList.length) {
-                        reject({ status: false, fields: falseList, message: "your query fields are not present in the user readable list" });
                     } else {
-                        queryfields = fields.join(" ");
+                        queryfields = readableFields.join(" ");
                     }
-                } else {
-                    queryfields = readableFields.join(" ");
-                }
-                /* users permission checking condition added */
-                let permissionValueAdding = {
-                    $or: [{
-                        rolesAllowedToRead: {
-                            $in: request.userInfo.roles
-                        }
-                    }, {
-                        idsAllowedToRead: {
-                            $in: request.userInfo.userId
-                        }
-                    }]
-                };
-                // query = merge_Objects(query, permissionValueAdding);
-                query = _.merge(query, permissionValueAdding);
-                pullDataWithFields(tablename, query, queryfields, page, rowsPerPage, populateConfig, request).then(docs => {
-                    getTotalCount(tablename, query, request).then(count => {
-                        resolve({ status: true, data: docs, totalCount: count });
+                    /* users permission checking condition added */
+                    let permissionValueAdding = {
+                        $or: [{
+                            rolesAllowedToRead: {
+                                $in: request.userInfo.roles
+                            }
+                        }, {
+                            idsAllowedToRead: {
+                                $in: request.userInfo.userId
+                            }
+                        }]
+                    };
+                    // query = merge_Objects(query, permissionValueAdding);
+                    query = _.merge(query, permissionValueAdding);
+                    pullDataWithFields(tablename, query, queryfields, page, rowsPerPage, populateConfig, request).then(docs => {
+                        getTotalCount(tablename, query, request).then(count => {
+                            resolve({ status: true, data: docs, totalCount: count });
+                        }).catch(error => {
+                            reject(error);
+                        });
                     }).catch(error => {
                         reject(error);
                     });
-                }).catch(error => {
-                    reject(error);
+                })
+                .catch(function(err) {
+                    reject(err);
                 });
-            })
-            .catch(function(err) {
-                reject(err);
-            });
-        }else{
+        } else {
             resolve({
-                status:false,
-                message:"No table found with name "+ tablename
+                status: false,
+                message: "No table found with name " + tablename
             });
         }
     });
@@ -379,42 +378,42 @@ function pullDataWithFields(tablename, query, fields, page, rowsPerPage, populat
         0 :
         rowsPerPage * page;
     let populationFields = [];
-        let dataQuery = tables[origin][tablename].find(query, fields);
-        // configuring populating config
-        if (populateConfig && populateConfig.length) {
-            populateConfig.forEach(populate => {
-                if (populate.property && populate.fields.length) {
-                    populationFields = populate.fields.length ?
-                        removeSecurityFieldsFromPopulation(populate.fields) :
-                        null;
-                    if (populationFields.length) {
-                        populationFields = populationFields.join(" ");
-                        dataQuery.populate(populate.property, populationFields);
-                    }
+    let dataQuery = tables[origin][tablename].find(query, fields);
+    // configuring populating config
+    if (populateConfig && populateConfig.length) {
+        populateConfig.forEach(populate => {
+            if (populate.property && populate.fields.length) {
+                populationFields = populate.fields.length ?
+                    removeSecurityFieldsFromPopulation(populate.fields) :
+                    null;
+                if (populationFields.length) {
+                    populationFields = populationFields.join(" ");
+                    dataQuery.populate(populate.property, populationFields);
                 }
-            });
-        }
-        if (request.body.orderBy) {
-            if (request.body.orderType) {
-                if (request.body.orderType == 'ASC') {
-                    dataQuery.sort(request.body.orderBy);
-                } else if (request.body.orderType == 'DESC') {
-                    dataQuery.sort('-' + request.body.orderBy);
-                }
-            } else {
-                dataQuery.sort(request.body.orderBy);
             }
-        }
-        return new Promise((resolve, reject) => {
-            dataQuery
-                .skip(skip)
-                .limit(rowsPerPage)
-                .exec((err, docs) => {
-                    if (err)
-                        reject(err);
-                    resolve(docs);
-                });
         });
+    }
+    if (request.body.orderBy) {
+        if (request.body.orderType) {
+            if (request.body.orderType == 'ASC') {
+                dataQuery.sort(request.body.orderBy);
+            } else if (request.body.orderType == 'DESC') {
+                dataQuery.sort('-' + request.body.orderBy);
+            }
+        } else {
+            dataQuery.sort(request.body.orderBy);
+        }
+    }
+    return new Promise((resolve, reject) => {
+        dataQuery
+            .skip(skip)
+            .limit(rowsPerPage)
+            .exec((err, docs) => {
+                if (err)
+                    reject(err);
+                resolve(docs);
+            });
+    });
 }
 /**
  * Getting total number of count
