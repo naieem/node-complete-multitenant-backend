@@ -37,8 +37,7 @@ module.exports = {
     getRelationData: getRelationData,
     uploadFileHandler: uploadFileHandler,
     getFiles: getFiles,
-    getFeatures: getFeatures,
-    getDefaultPermission: getDefaultPermission
+    getFeatures: getFeatures
 };
 /**
  * inserting data in the table

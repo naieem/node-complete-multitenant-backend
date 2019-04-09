@@ -1,7 +1,6 @@
 var bcrypt = require("bcryptjs");
 var jwt = require("jsonwebtoken");
 var globalConfig = require("../globalConfig");
-var personModel = require("../tables/core/person.table");
 var tokenStorage = require("./tokenStorage.service");
 var dataHandler = require('../handler/data.handler');
 var secret = "751d88b0-e5e2-4627-90e5-06839eff73b0";
