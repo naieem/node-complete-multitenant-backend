@@ -48,6 +48,8 @@ function register(req, res) {
                         if (!error) {
                             if (hierarchy && hierarchy.length) {
                                 doUserRegistration(req, res);
+                            } else {
+                                sendErrorMessage(res, "Rolemap not found for " + req.userInfo.roles);
                             }
                         } else {
                             sendErrorMessage(res, error);
