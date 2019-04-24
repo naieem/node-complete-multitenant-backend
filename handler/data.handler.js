@@ -47,10 +47,10 @@ module.exports = {
 function insert(request) {
     var tablename = request.body.table;
     var data = request.body.data;
-    data.created_at = new Date();
     var tag = request.body.data.tag;
     // removing the permissions if some hacker tries to add them with data source
     data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
+    data.created_at = new Date();
     return new Promise(function(resolve, reject) {
         if (tables[origin][tablename]) {
             checkTagValidator(request).then(result => {
