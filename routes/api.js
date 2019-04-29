@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 const multer = require('multer');
 var faker = require("faker");
+
 var globalConfig = require("../globalConfig");
 var storage = multer.diskStorage({
     destination: function(req, file, cb) {
@@ -40,6 +41,7 @@ router.post('/getByQuery', middleware.validatetoken, dataController.getDataByQue
 router.post('/uploadFile', middleware.validatetoken, upload.single('file'), dataController.uploadFile);
 router.post('/getFile', middleware.validatetoken, dataController.getFile);
 router.post('/getFeatures', middleware.validatetoken, dataController.getFeatures);
+router.post('/generatePdf', middleware.validatetoken, dataController.generatePdf);
 router.post('/validateToken', middleware.validatetoken, (req, res) => {
     res.status(200).send({
         result: true,

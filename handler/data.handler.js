@@ -2,7 +2,8 @@ var _ = require("lodash");
 const AWS = require("aws-sdk");
 var faker = require("faker");
 var path = require("path");
-
+var fs = require('fs')
+var conversion = require("phantom-html-to-pdf")();
 var globalConfig = require("../globalConfig");
 var tagValidators = require("../tables/tagvalidators");
 var restrictedTables = [
@@ -37,7 +38,8 @@ module.exports = {
     getRelationData: getRelationData,
     uploadFileHandler: uploadFileHandler,
     getFiles: getFiles,
-    getFeatures: getFeatures
+    getFeatures: getFeatures,
+    generatePdf: generatePdf
 };
 /**
  * inserting data in the table
@@ -802,6 +804,42 @@ function getFeatures(request) {
                 }
             } else {
                 reject({ status: false, message: err });
+            }
+        });
+    });
+}
+
+function generatePdf(req) {
+    return new Promise((resolve, reject) => {
+        var resulthtml = "";
+        resulthtml += '<html>';
+        resulthtml += '<head>';
+        resulthtml += '</head>';
+        resulthtml += `<body>${req.body.style}`;
+        resulthtml += `<div class="row">${req.body.data}`;
+        resulthtml += '</div>';
+        resulthtml += '</body>';
+        resulthtml += '<html>';
+        conversion({ html: resulthtml }, function(err, pdf) {
+            let filename = req.body.filename;
+            if (!err) {
+                var output = fs.createWriteStream(`C:\storage/${filename}.pdf`)
+                console.log(pdf.logs);
+                console.log(pdf.numberOfPages);
+                // since pdf.stream is a node.js stream you can use it
+                // to save the pdf to a file (like in this example) or to
+                // respond an http request.
+                pdf.stream.pipe(output);
+                resolve({
+                    status: true,
+                    message: "Pdf generated succesfully",
+                    filename: filename + '.pdf'
+                });
+            } else {
+                reject({
+                    status: false,
+                    message: err
+                });
             }
         });
     });

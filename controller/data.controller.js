@@ -7,7 +7,8 @@ module.exports = {
         getRelationData: getRelationData,
         uploadFile: uploadFile,
         getFile: getFile,
-        getFeatures: getFeatures
+        getFeatures: getFeatures,
+        generatePdf: generatePdf
     }
     /**
      * inserting into database
@@ -107,6 +108,18 @@ function getFile(req, res) {
  */
 function getFeatures(req, res) {
     dataHandler.getFeatures(req).then((result) => {
+        res.status(200).send(result);
+    }).catch((err) => {
+        res.status(200).send(err);
+    });
+}
+/**
+ * Get list of navigations
+ * @param {*} req 
+ * @param {*} res 
+ */
+function generatePdf(req, res) {
+    dataHandler.generatePdf(req).then((result) => {
         res.status(200).send(result);
     }).catch((err) => {
         res.status(200).send(err);
