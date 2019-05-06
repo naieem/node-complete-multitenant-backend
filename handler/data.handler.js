@@ -6,6 +6,7 @@ var fs = require('fs')
 var conversion = require("phantom-html-to-pdf")();
 var globalConfig = require("../globalConfig");
 var tagValidators = require("../tables/tagvalidators");
+const { CanvasRenderService } = require('chartjs-node-canvas');
 var restrictedTables = [
     "infocenter",
     "relationship",
@@ -809,38 +810,135 @@ function getFeatures(request) {
     });
 }
 
+function randomScalingFactor() {
+    return Math.floor(Math.random() * 100000 + 1);
+};
+
 function generatePdf(req) {
     return new Promise((resolve, reject) => {
-        var resulthtml = "";
-        resulthtml += '<html>';
-        resulthtml += '<head>';
-        resulthtml += '</head>';
-        resulthtml += `<body>${req.body.style}`;
-        resulthtml += `<div class="row">${req.body.data}`;
-        resulthtml += '</div>';
-        resulthtml += '</body>';
-        resulthtml += '<html>';
-        conversion({ html: resulthtml }, function(err, pdf) {
-            let filename = req.body.filename;
-            if (!err) {
-                var output = fs.createWriteStream(`C:\storage/${filename}.pdf`)
-                console.log(pdf.logs);
-                console.log(pdf.numberOfPages);
-                // since pdf.stream is a node.js stream you can use it
-                // to save the pdf to a file (like in this example) or to
-                // respond an http request.
-                pdf.stream.pipe(output);
-                resolve({
-                    status: true,
-                    message: "Pdf generated succesfully",
-                    filename: filename + '.pdf'
-                });
-            } else {
-                reject({
-                    status: false,
-                    message: err
-                });
+        const width = 900;
+        const height = 400;
+        const configuration = {
+            type: 'line',
+            data: {
+                labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+                datasets: [{
+                        label: 'Pending',
+                        data: [
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor()
+                        ],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255,99,132,1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Done',
+                        data: [
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor()
+                        ],
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'In Progress',
+                        data: [
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor(),
+                            randomScalingFactor()
+                        ],
+                        backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                        borderColor: 'rgba(255, 206, 86, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    xAxes: [{
+                        stacked: false,
+                    }],
+                    yAxes: [{
+                        stacked: true
+                    }]
+                }
             }
+        };
+        const chartCallback = (ChartJS) => {
+
+            // Global config example: https://www.chartjs.org/docs/latest/configuration/
+            ChartJS.defaults.global.elements.rectangle.borderWidth = 2;
+            // Global plugin example: https://www.chartjs.org/docs/latest/developers/plugins.html
+            ChartJS.plugins.register({
+                // plugin implementation
+            });
+            // New chart type example: https://www.chartjs.org/docs/latest/developers/charts.html
+            ChartJS.controllers.MyType = ChartJS.DatasetController.extend({
+                // chart implementation
+            });
+        };
+        // (async() => {
+        //     const canvasRenderService = new CanvasRenderService(width, height, chartCallback);
+        //     const image = await canvasRenderService.renderToBuffer(configuration);
+        //     const dataUrl = await canvasRenderService.renderToDataURL(configuration);
+        //     const stream = canvasRenderService.renderToStream(configuration);
+        //     debugger
+        // })();
+        const canvasRenderService = new CanvasRenderService(width, height, chartCallback);
+        canvasRenderService.renderToDataURL(configuration).then((imageData) => {
+            var resulthtml = "";
+            resulthtml += '<html>';
+            resulthtml += '<head>';
+            resulthtml += '</head>';
+            resulthtml += `<body>${req.body.style}`;
+            resulthtml += `<div class="row">
+            ${req.body.html}`;
+            resulthtml += `</div>
+            <script>
+            document.getElementById("graph").innerHTML = "<img id='base64image' src='${imageData}' />";
+            </script>`;
+            resulthtml += '</body>';
+            resulthtml += '<html>';
+            conversion({ html: resulthtml }, function(err, pdf) {
+                let filename = req.body.filename;
+                if (!err) {
+                    var output = fs.createWriteStream(`C:\storage/${filename}.pdf`)
+                    console.log(pdf.logs);
+                    console.log(pdf.numberOfPages);
+                    // since pdf.stream is a node.js stream you can use it
+                    // to save the pdf to a file (like in this example) or to
+                    // respond an http request.
+                    pdf.stream.pipe(output);
+                    resolve({
+                        status: true,
+                        message: "Pdf generated succesfully",
+                        filename: filename + '.pdf'
+                    });
+                } else {
+                    reject({
+                        status: false,
+                        message: err
+                    });
+                }
+            });
+        }).catch((error) => {
+            console.log(error);
         });
     });
 }
