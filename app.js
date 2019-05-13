@@ -3,6 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 const fileUpload = require('express-fileupload');
+var bodyParser = require('body-parser')
 var logger = require('morgan');
 var cors = require('cors');
 var mongoose = require('mongoose');
@@ -19,11 +20,10 @@ app.use(cors());
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(logger('dev'));
-app.use(express.json());
+app.use(express.json({limit: '50mb', extended: true}));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-// app.use(fileUpload());
 
 app.use((req, res, next) => {
     if (!sites.includes(req.headers.origin)) {
