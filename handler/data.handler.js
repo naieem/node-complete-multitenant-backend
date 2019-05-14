@@ -1,12 +1,13 @@
 var _ = require("lodash");
-const AWS = require("aws-sdk");
 var faker = require("faker");
-var path = require("path");
-var fs = require('fs')
+var bcrypt = require("bcryptjs");
+var fs = require("fs");
 var conversion = require("phantom-html-to-pdf")();
 var globalConfig = require("../globalConfig");
 var tagValidators = require("../tables/tagvalidators");
-const { CanvasRenderService } = require('chartjs-node-canvas');
+const {
+    CanvasRenderService
+} = require("chartjs-node-canvas");
 var restrictedTables = [
     "infocenter",
     "relationship",
@@ -40,7 +41,8 @@ module.exports = {
     uploadFileHandler: uploadFileHandler,
     getFiles: getFiles,
     getFeatures: getFeatures,
-    generatePdf: generatePdf
+    generatePdf: generatePdf,
+    updatePassword: updatePassword
 };
 /**
  * inserting data in the table
@@ -54,69 +56,91 @@ function insert(request) {
     // removing the permissions if some hacker tries to add them with data source
     data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
     data.created_at = new Date();
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         if (tables[origin][tablename]) {
-            checkTagValidator(request).then(result => {
-                if (result) {
-                    if (restrictedTables.includes(tablename)) {
+            checkTagValidator(request)
+                .then(result => {
+                    if (result) {
+                        if (restrictedTables.includes(tablename)) {
+                            reject({
+                                status: false,
+                                message: "you are not allowed to perform any kind of action to " +
+                                    tablename +
+                                    " table"
+                            });
+                        }
+                        if (!data._id) {
+                            reject({
+                                status: false,
+                                message: "no item id found in the payload"
+                            });
+                        }
+                        /**
+                         * checking permission whether the current token user has permission to do action
+                         */
+                        checkPermission(request, "insert")
+                            .then(result => {
+                                /**
+                                 * getting default permission set for the table
+                                 */
+                                getDefaultPermission(tablename)
+                                    .then(defaultPermissions => {
+                                        /**
+                                         * adding default permissions with the data to be saved
+                                         */
+                                        if (defaultPermissions) {
+                                            Object.keys(defaultPermissions).forEach(function (
+                                                key,
+                                                idx
+                                            ) {
+                                                if (defaultPermissions[key] == "owner") {
+                                                    data[key] = request.userInfo.userId;
+                                                } else {
+                                                    data[key] = defaultPermissions[key];
+                                                }
+                                            });
+
+                                            tables[origin][tablename].create(data, function (
+                                                err,
+                                                docs
+                                            ) {
+                                                if (err) {
+                                                    if (err.code == 11000)
+                                                        return reject({
+                                                            status: false,
+                                                            message: "Duplicate item id found"
+                                                        });
+                                                }
+                                                return resolve({
+                                                    status: true,
+                                                    itemId: docs._id
+                                                });
+                                            });
+                                        } else {
+                                            resolve({
+                                                status: false,
+                                                message: "sorry no default permission found for the table " +
+                                                    tablename
+                                            });
+                                        }
+                                    })
+                                    .catch(error => {
+                                        reject(error);
+                                    });
+                            })
+                            .catch(error => {
+                                reject(error);
+                            });
+                    } else {
                         reject({
                             status: false,
-                            message: "you are not allowed to perform any kind of action to " + tablename + " table"
+                            message: "Tag Validation faild for " + tag
                         });
                     }
-                    if (!data._id) {
-                        reject({ status: false, message: "no item id found in the payload" });
-                    }
-                    /**
-                     * checking permission whether the current token user has permission to do action
-                     */
-                    checkPermission(request, "insert").then(result => {
-                        /**
-                         * getting default permission set for the table
-                         */
-                        getDefaultPermission(tablename).then(defaultPermissions => {
-                            /**
-                             * adding default permissions with the data to be saved
-                             */
-                            if (defaultPermissions) {
-                                Object
-                                    .keys(defaultPermissions)
-                                    .forEach(function(key, idx) {
-                                        if (defaultPermissions[key] == "owner") {
-                                            data[key] = request.userInfo.userId;
-                                        } else {
-                                            data[key] = defaultPermissions[key];
-                                        }
-                                    });
-
-                                tables[origin][tablename].create(data, function(err, docs) {
-                                    if (err) {
-                                        if (err.code == 11000)
-                                            return reject({ status: false, message: "Duplicate item id found" });
-                                    }
-                                    return resolve({ status: true, itemId: docs._id });
-                                });
-                            } else {
-                                resolve({
-                                    status: false,
-                                    message: "sorry no default permission found for the table " + tablename
-                                });
-                            }
-                        }).catch(error => {
-                            reject(error);
-                        });
-                    }).catch(error => {
-                        reject(error);
-                    });
-                } else {
-                    reject({
-                        status: false,
-                        message: "Tag Validation faild for " + tag
-                    });
-                }
-            }).catch(error => {
-                reject(error);
-            });
+                })
+                .catch(error => {
+                    reject(error);
+                });
         } else {
             resolve({
                 status: false,
@@ -130,7 +154,7 @@ function insert(request) {
  * @param {*} request
  */
 function update(request) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         var tablename = request.body.table;
         var data = request.body.data;
         var tag = request.body.data.tag;
@@ -140,55 +164,77 @@ function update(request) {
         data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
         data.updated_at = new Date();
         if (tables[origin][tablename]) {
-            checkTagValidator(request).then(result => {
-                if (result) {
-                    if (restrictedTables.includes(tablename)) {
+            checkTagValidator(request)
+                .then(result => {
+                    if (result) {
+                        if (restrictedTables.includes(tablename)) {
+                            reject({
+                                status: false,
+                                message: "you are not allowed to perform any kind of action to " +
+                                    tablename +
+                                    " table"
+                            });
+                        }
+                        if (!data._id) {
+                            reject({
+                                status: false,
+                                message: "no item id found in the payload"
+                            });
+                        } else {
+                            checkPermission(request, "update")
+                                .then(res => {
+                                    checkPermissionToUpdate(
+                                            tablename,
+                                            data._id,
+                                            currenUserRole,
+                                            currentUserId,
+                                            request
+                                        )
+                                        .then(result => {
+                                            changeObserver(request).then(observerResponse => {
+                                                if (observerResponse) {
+                                                    tables[origin][tablename].updateOne({
+                                                            _id: data._id
+                                                        },
+                                                        data,
+                                                        (err, response) => {
+                                                            if (err) return reject(err);
+
+                                                            if (response.ok)
+                                                                resolve({
+                                                                    status: true,
+                                                                    itemId: data._id,
+                                                                    message: "update fuccessfull"
+                                                                });
+                                                        }
+                                                    );
+                                                }
+                                            });
+                                        })
+                                        .catch(err => {
+                                            reject(err);
+                                        });
+                                })
+                                .catch(err => {
+                                    reject(err);
+                                });
+                        }
+                    } else {
                         reject({
                             status: false,
-                            message: "you are not allowed to perform any kind of action to " + tablename + " table"
+                            message: "Tag Validation faild for " + tag
                         });
                     }
-                    if (!data._id) {
-                        reject({ status: false, message: "no item id found in the payload" });
-                    } else {
-                        checkPermission(request, "update").then(res => {
-                            checkPermissionToUpdate(tablename, data._id, currenUserRole, currentUserId, request).then(result => {
-                                changeObserver(request).then(observerResponse => {
-                                    if (observerResponse) {
-                                        tables[origin][tablename].updateOne({
-                                            _id: data._id
-                                        }, data, (err, response) => {
-                                            if (err)
-                                                return reject(err);
-
-                                            if (response.ok)
-                                                resolve({ status: true, itemId: data._id, message: "update fuccessfull" });
-                                        });
-                                    }
-                                });
-                            }).catch(err => {
-                                reject(err);
-                            });
-                        }).catch(err => {
-                            reject(err);
-                        });
-                    }
-                } else {
-                    reject({
-                        status: false,
-                        message: "Tag Validation faild for " + tag
-                    });
-                }
-            }).catch(err => {
-                reject(err);
-            });
+                })
+                .catch(err => {
+                    reject(err);
+                });
         } else {
             resolve({
                 status: false,
                 message: "No table found with name " + tablename
             });
         }
-
     });
 }
 
@@ -202,47 +248,59 @@ function changeObserver(request) {
     var counter = 0;
     console.log("change observer called");
     return new Promise((resolve, reject) => {
-        tables[origin]["changeobserver"]
-            .find({
+        tables[origin]["changeobserver"].find({
                 parentTable: tablename
-            }, function(err, docs) {
+            },
+            function (err, docs) {
                 if (!err) {
                     if (docs && docs.length) {
                         console.log("change observer data found");
                         tables[origin][tablename].find({
-                            _id: data._id
-                        }, (error, parentTableData) => {
-                            parentData = parentTableData[0];
-                            docs.forEach(element => {
-                                if (tables[origin][element.childTable] && data[element.parentField]) {
-                                    tables[origin][element.childTable].update({
-                                        [element.childQueryField]: parentData['id']
-                                    }, {
-                                        [element.childField]: data[element.parentField]
-                                    }, {
-                                        multi: true
-                                    }, (err, info) => {
-                                        if (!err && info.ok) {
-                                            if (counter != docs.length - 1) {
-                                                counter++;
-                                            } else {
-                                                console.log('change observer data update successful');
-                                                resolve(true);
+                                _id: data._id
+                            },
+                            (error, parentTableData) => {
+                                parentData = parentTableData[0];
+                                docs.forEach(element => {
+                                    if (
+                                        tables[origin][element.childTable] &&
+                                        data[element.parentField]
+                                    ) {
+                                        tables[origin][element.childTable].update({
+                                                [element.childQueryField]: parentData["id"]
+                                            }, {
+                                                [element.childField]: data[element.parentField]
+                                            }, {
+                                                multi: true
+                                            },
+                                            (err, info) => {
+                                                if (!err && info.ok) {
+                                                    if (counter != docs.length - 1) {
+                                                        counter++;
+                                                    } else {
+                                                        console.log(
+                                                            "change observer data update successful"
+                                                        );
+                                                        resolve(true);
+                                                    }
+                                                }
                                             }
-                                        }
-                                    });
-                                } else {
-                                    resolve(true);
-                                    console.log("Table not found or the field is not updating which is there to update");
-                                }
-                            });
-                        });
+                                        );
+                                    } else {
+                                        resolve(true);
+                                        console.log(
+                                            "Table not found or the field is not updating which is there to update"
+                                        );
+                                    }
+                                });
+                            }
+                        );
                     } else {
                         console.log("No change observer data found");
                         resolve(true);
                     }
                 }
-            });
+            }
+        );
     });
 }
 
@@ -255,23 +313,20 @@ function deleteData() {}
 function getData(request) {
     var queryfields = null;
     var tablename = request.body.table;
-    var populateConfig = request.body.populate ?
-        request.body.populate :
-        null;
+    var populateConfig = request.body.populate ? request.body.populate : null;
     var query = request.body.query;
-    var page = request.body.page ?
-        request.body.page :
-        0;
+    var page = request.body.page ? request.body.page : 0;
     var rowsPerPage = request.body.count ?
         request.body.count :
         DEFAULTNUMBEROFROWSTORETURN;
-    var fields = request.body.fields && request.body.fields.length ?
+    var fields =
+        request.body.fields && request.body.fields.length ?
         request.body.fields :
         null;
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         if (tables[origin][tablename]) {
             getUserReadableData(tablename)
-                .then(function(readableFields) {
+                .then(function (readableFields) {
                     /** if fields presents in the request body then check that first
                      * else use the user readable fields coming from table userreadable data fields
                      */
@@ -284,7 +339,11 @@ function getData(request) {
                             }
                         });
                         if (falseList.length) {
-                            reject({ status: false, fields: falseList, message: "your query fields are not present in the user readable list" });
+                            reject({
+                                status: false,
+                                fields: falseList,
+                                message: "your query fields are not present in the user readable list"
+                            });
                         } else {
                             queryfields = fields.join(" ");
                         }
@@ -294,28 +353,46 @@ function getData(request) {
                     /* users permission checking condition added */
                     let permissionValueAdding = {
                         $or: [{
-                            rolesAllowedToRead: {
-                                $in: request.userInfo.roles
+                                rolesAllowedToRead: {
+                                    $in: request.userInfo.roles
+                                }
+                            },
+                            {
+                                idsAllowedToRead: {
+                                    $in: request.userInfo.userId
+                                }
                             }
-                        }, {
-                            idsAllowedToRead: {
-                                $in: request.userInfo.userId
-                            }
-                        }]
+                        ]
                     };
                     // query = merge_Objects(query, permissionValueAdding);
                     query = _.merge(query, permissionValueAdding);
-                    pullDataWithFields(tablename, query, queryfields, page, rowsPerPage, populateConfig, request).then(docs => {
-                        getTotalCount(tablename, query, request).then(count => {
-                            resolve({ status: true, data: docs, totalCount: count });
-                        }).catch(error => {
+                    pullDataWithFields(
+                            tablename,
+                            query,
+                            queryfields,
+                            page,
+                            rowsPerPage,
+                            populateConfig,
+                            request
+                        )
+                        .then(docs => {
+                            getTotalCount(tablename, query, request)
+                                .then(count => {
+                                    resolve({
+                                        status: true,
+                                        data: docs,
+                                        totalCount: count
+                                    });
+                                })
+                                .catch(error => {
+                                    reject(error);
+                                });
+                        })
+                        .catch(error => {
                             reject(error);
                         });
-                    }).catch(error => {
-                        reject(error);
-                    });
                 })
-                .catch(function(err) {
+                .catch(function (err) {
                     reject(err);
                 });
         } else {
@@ -375,10 +452,16 @@ function removeSecurityFieldsFromPopulation(array) {
  * @param {*} query (object)
  * @param {*} fields ([string])
  */
-function pullDataWithFields(tablename, query, fields, page, rowsPerPage, populateConfig, request) {
-    var skip = page === 0 ?
-        0 :
-        rowsPerPage * page;
+function pullDataWithFields(
+    tablename,
+    query,
+    fields,
+    page,
+    rowsPerPage,
+    populateConfig,
+    request
+) {
+    var skip = page === 0 ? 0 : rowsPerPage * page;
     let populationFields = [];
     let dataQuery = tables[origin][tablename].find(query, fields);
     // configuring populating config
@@ -397,10 +480,10 @@ function pullDataWithFields(tablename, query, fields, page, rowsPerPage, populat
     }
     if (request.body.orderBy) {
         if (request.body.orderType) {
-            if (request.body.orderType == 'ASC') {
+            if (request.body.orderType == "ASC") {
                 dataQuery.sort(request.body.orderBy);
-            } else if (request.body.orderType == 'DESC') {
-                dataQuery.sort('-' + request.body.orderBy);
+            } else if (request.body.orderType == "DESC") {
+                dataQuery.sort("-" + request.body.orderBy);
             }
         } else {
             dataQuery.sort(request.body.orderBy);
@@ -411,8 +494,7 @@ function pullDataWithFields(tablename, query, fields, page, rowsPerPage, populat
             .skip(skip)
             .limit(rowsPerPage)
             .exec((err, docs) => {
-                if (err)
-                    reject(err);
+                if (err) reject(err);
                 resolve(docs);
             });
     });
@@ -424,14 +506,10 @@ function pullDataWithFields(tablename, query, fields, page, rowsPerPage, populat
  */
 function getTotalCount(tableName, query, request) {
     return new Promise((resolve, reject) => {
-        tables[origin][tableName]
-            .find(query)
-            .count(function(err, count) {
-                if (err)
-                    reject(err);
-                else
-                    resolve(count);
-            });
+        tables[origin][tableName].find(query).count(function (err, count) {
+            if (err) reject(err);
+            else resolve(count);
+        });
     });
 }
 /**
@@ -439,19 +517,23 @@ function getTotalCount(tableName, query, request) {
  * @param {*} tablename
  */
 function getUserReadableData(tablename) {
-    return new Promise(function(resolve, reject) {
-        tables[origin]["userreadabledata"]
-            .find({
+    return new Promise(function (resolve, reject) {
+        tables[origin]["userreadabledata"].find({
                 tableName: tablename
-            }, "readableFields", function(err, docs) {
-                if (err)
-                    return reject(err);
+            },
+            "readableFields",
+            function (err, docs) {
+                if (err) return reject(err);
                 if (docs && docs.length) {
                     resolve(docs[0].readableFields);
                 } else {
-                    reject({ status: false, message: "no user readable data found" });
+                    reject({
+                        status: false,
+                        message: "no user readable data found"
+                    });
                 }
-            });
+            }
+        );
     });
 }
 /**
@@ -461,15 +543,14 @@ function getUserReadableData(tablename) {
 function getDefaultPermission(tableName) {
     return new Promise((resolve, reject) => {
         tables[origin]["table"].find({
-            tableName: tableName
-        }, (error, docs) => {
-            if (error)
-                reject(error);
-            if (docs && docs.length)
-                resolve(docs[0].defaultPermission);
-            else
-                resolve(null);
-        });
+                tableName: tableName
+            },
+            (error, docs) => {
+                if (error) reject(error);
+                if (docs && docs.length) resolve(docs[0].defaultPermission);
+                else resolve(null);
+            }
+        );
     });
 }
 /**
@@ -488,22 +569,29 @@ function checkPermission(request, permissionType) {
 
     return new Promise((resolve, reject) => {
         tables[origin]["table"].find({
-            tableName: tableName
-        }, (err, docs) => {
-            if (err)
-                reject(err);
-            if (docs && docs.length) {
-                var rolesWhoPermitted = docs[0][permissionFields[permissionType]];
-                currenUserRole.forEach(role => {
-                    if (rolesWhoPermitted.includes(role)) {
-                        return resolve(true);
-                    }
-                });
-                return reject({ status: false, message: "You are not permitted for this action" });
-            } else {
-                reject({ status: false, message: "No permission found for your action" });
+                tableName: tableName
+            },
+            (err, docs) => {
+                if (err) reject(err);
+                if (docs && docs.length) {
+                    var rolesWhoPermitted = docs[0][permissionFields[permissionType]];
+                    currenUserRole.forEach(role => {
+                        if (rolesWhoPermitted.includes(role)) {
+                            return resolve(true);
+                        }
+                    });
+                    return reject({
+                        status: false,
+                        message: "You are not permitted for this action"
+                    });
+                } else {
+                    reject({
+                        status: false,
+                        message: "No permission found for your action"
+                    });
+                }
             }
-        });
+        );
     });
 }
 /**
@@ -522,22 +610,26 @@ function checkPermissionToUpdate(tablename, itemId, roles, userId, request) {
         var query = {
             _id: itemId,
             $or: [{
-                rolesAllowedToUpdate: {
-                    $in: roles
+                    rolesAllowedToUpdate: {
+                        $in: roles
+                    }
+                },
+                {
+                    idsAllowedToUpdate: {
+                        $in: [userId]
+                    }
                 }
-            }, {
-                idsAllowedToUpdate: {
-                    $in: [userId]
-                }
-            }]
+            ]
         };
         tables[origin][tablename].find(query, (err, docs) => {
-            if (err)
-                reject(err);
+            if (err) reject(err);
             if (docs && docs.length) {
                 resolve(true);
             } else {
-                reject({ result: false, message: "You are not permitted to update this data" });
+                reject({
+                    result: false,
+                    message: "You are not permitted to update this data"
+                });
             }
         });
     });
@@ -549,15 +641,22 @@ function checkPermissionToUpdate(tablename, itemId, roles, userId, request) {
  */
 function addRelationShip(data) {
     return new Promise((resolve, reject) => {
-        checkRelationMapper(data.parentTableName, data.childTableName).then(result => {
-            checkAndInsertDataToRelationShipTable(data).then(insertResult => {
-                resolve(insertResult);
-            }).catch(relationError => {
-                reject(relationError);
+        checkRelationMapper(data.parentTableName, data.childTableName)
+            .then(result => {
+                checkAndInsertDataToRelationShipTable(data)
+                    .then(insertResult => {
+                        resolve(insertResult);
+                    })
+                    .catch(relationError => {
+                        reject(relationError);
+                    });
+            })
+            .catch(err => {
+                reject({
+                    status: false,
+                    message: "relation mapper not found"
+                });
             });
-        }).catch(err => {
-            reject({ status: false, message: "relation mapper not found" });
-        });
     });
 }
 
@@ -568,20 +667,22 @@ function addRelationShip(data) {
  */
 function checkRelationMapper(parentTablename, childTablename) {
     return new Promise((resolve, reject) => {
-        tables
-            .relationmapper
-            .find({
+        tables.relationmapper.find({
                 parentTableName: parentTablename,
                 childTableName: childTablename
-            }, (err, docs) => {
-                if (err)
-                    reject(err);
+            },
+            (err, docs) => {
+                if (err) reject(err);
                 if (docs && docs.length) {
                     resolve(true);
                 } else {
-                    reject({ status: false, message: "no relation mapper found between tables" });
+                    reject({
+                        status: false,
+                        message: "no relation mapper found between tables"
+                    });
                 }
-            });
+            }
+        );
     });
 }
 /**
@@ -596,36 +697,56 @@ function checkAndInsertDataToRelationShipTable(data) {
     return new Promise((resolve, reject) => {
         // if parent table has data
         tables[parentTableName].find({
-            _id: parentId
-        }, (err, docs) => {
-            if (err) {
-                return reject({ status: false, message: err });
+                _id: parentId
+            },
+            (err, docs) => {
+                if (err) {
+                    return reject({
+                        status: false,
+                        message: err
+                    });
+                }
+                if (docs && docs.length) {
+                    // check if child table has data
+                    tables[childTableName].find({
+                            _id: childId
+                        },
+                        (error, childDocs) => {
+                            if (error) {
+                                return reject({
+                                    status: false,
+                                    message: error
+                                });
+                            }
+                            // if everything ok then adds data to relationship table
+                            if (childDocs && childDocs.length) {
+                                tables.relationship.create(
+                                    data,
+                                    (relationerr, relationData) => {
+                                        if (relationerr) return reject(relationerr);
+                                        return resolve({
+                                            status: true,
+                                            itemId: relationData._id,
+                                            message: "relationship added successfully"
+                                        });
+                                    }
+                                );
+                            } else {
+                                return reject({
+                                    status: false,
+                                    message: "child table data not inserted yet"
+                                });
+                            }
+                        }
+                    );
+                } else {
+                    return reject({
+                        status: false,
+                        message: "Parent table data not inserted yet"
+                    });
+                }
             }
-            if (docs && docs.length) {
-                // check if child table has data
-                tables[childTableName].find({
-                    _id: childId
-                }, (error, childDocs) => {
-                    if (error) {
-                        return reject({ status: false, message: error });
-                    }
-                    // if everything ok then adds data to relationship table
-                    if (childDocs && childDocs.length) {
-                        tables
-                            .relationship
-                            .create(data, (relationerr, relationData) => {
-                                if (relationerr)
-                                    return reject(relationerr);
-                                return resolve({ status: true, itemId: relationData._id, message: "relationship added successfully" });
-                            });
-                    } else {
-                        return reject({ status: false, message: "child table data not inserted yet" });
-                    }
-                });
-            } else {
-                return reject({ status: false, message: "Parent table data not inserted yet" });
-            }
-        });
+        );
     });
 }
 /**
@@ -636,52 +757,64 @@ function getRelationData(request) {
     var data = request.body;
     return new Promise((resolve, reject) => {
         // checking if botht table has relation mapper permission
-        checkRelationMapper(data.parentTableName, data.childTableName).then(result => {
-            tables
-                .relationship
-                .find(data, (err, docs) => {
-                    if (err)
-                        reject(err);
+        checkRelationMapper(data.parentTableName, data.childTableName)
+            .then(result => {
+                tables.relationship.find(data, (err, docs) => {
+                    if (err) reject(err);
 
                     if (docs && docs.length) {
                         // getting user readable data for child table
-                        getUserReadableData(data.childTableName).then(userReadableData => {
-                            let childTableIds = [];
-                            docs.forEach((value, index) => {
-                                if (!childTableIds.includes(value.childTableId))
-                                    childTableIds.push(value.childTableId);
-                            });
-                            let queryfields = userReadableData.join(" "); // readable fields join
-                            let query = {
-                                _id: {
-                                    $in: childTableIds
-                                },
-                                $or: [{
-                                    rolesAllowedToRead: {
-                                        $in: request.userInfo.roles
+                        getUserReadableData(data.childTableName)
+                            .then(userReadableData => {
+                                let childTableIds = [];
+                                docs.forEach((value, index) => {
+                                    if (!childTableIds.includes(value.childTableId))
+                                        childTableIds.push(value.childTableId);
+                                });
+                                let queryfields = userReadableData.join(" "); // readable fields join
+                                let query = {
+                                    _id: {
+                                        $in: childTableIds
+                                    },
+                                    $or: [{
+                                            rolesAllowedToRead: {
+                                                $in: request.userInfo.roles
+                                            }
+                                        },
+                                        {
+                                            idsAllowedToRead: {
+                                                $in: request.userInfo.userId
+                                            }
+                                        }
+                                    ]
+                                };
+                                // finding the child tables data
+                                tables[data.childTableName].find(
+                                    query,
+                                    queryfields,
+                                    (error, childData) => {
+                                        if (error) return reject(error);
+                                        return resolve({
+                                            status: true,
+                                            data: childData
+                                        });
                                     }
-                                }, {
-                                    idsAllowedToRead: {
-                                        $in: request.userInfo.userId
-                                    }
-                                }]
-                            };
-                            // finding the child tables data
-                            tables[data.childTableName].find(query, queryfields, (error, childData) => {
-                                if (error)
-                                    return reject(error);
-                                return resolve({ status: true, data: childData });
+                                );
+                            })
+                            .catch(erroReadable => {
+                                return reject(erroReadable);
                             });
-                        }).catch(erroReadable => {
-                            return reject(erroReadable);
-                        });
                     } else {
-                        return resolve({ status: true, message: "sorry no data found" });
+                        return resolve({
+                            status: true,
+                            message: "sorry no data found"
+                        });
                     }
                 });
-        }).catch(error => {
-            reject(error);
-        });
+            })
+            .catch(error => {
+                reject(error);
+            });
     });
 }
 /**
@@ -691,34 +824,43 @@ function getRelationData(request) {
 function uploadFileHandler(request) {
     return new Promise((resolve, reject) => {
         if (!request.file) {
-            reject({ status: false, message: "either no file or file form name not corrent" });
+            reject({
+                status: false,
+                message: "either no file or file form name not corrent"
+            });
         } else {
             let file = request.file;
-            const fileId = faker
-                .random
-                .uuid();
+            const fileId = faker.random.uuid();
             // file.path = baseUrl + file.path;
             filename = request.file.filename;
             const insertPayload = {
                 body: {
-                    table: 'file',
+                    table: "file",
                     data: {
                         _id: fileId,
                         fileName: filename,
                         fileUrl: file.path,
-                        tag: 'Is-A-File',
+                        tag: "Is-A-File",
                         metaData: {
                             originalname: request.file.originalname
                         }
                     }
                 },
                 userInfo: request.userInfo
-            }
-            insert(insertPayload).then((response) => {
-                resolve({ status: true, fileId: response.itemId });
-            }).catch((err) => {
-                reject({ status: false, message: err });
-            });
+            };
+            insert(insertPayload)
+                .then(response => {
+                    resolve({
+                        status: true,
+                        fileId: response.itemId
+                    });
+                })
+                .catch(err => {
+                    reject({
+                        status: false,
+                        message: err
+                    });
+                });
         }
     });
 }
@@ -731,28 +873,35 @@ function getFiles(request) {
         let query = {
             _id: request.body.fileId,
             $or: [{
-                rolesAllowedToRead: {
-                    $in: request.userInfo.roles
+                    rolesAllowedToRead: {
+                        $in: request.userInfo.roles
+                    }
+                },
+                {
+                    idsAllowedToRead: {
+                        $in: request.userInfo.userId
+                    }
                 }
-            }, {
-                idsAllowedToRead: {
-                    $in: request.userInfo.userId
-                }
-            }]
+            ]
         };
-        tables[origin]['file'].find(query, (err, docs) => {
-
+        tables[origin]["file"].find(query, (err, docs) => {
             if (docs.length) {
-                resolve({ fileName: docs[0].fileName, fileLink: docs[0].fileUrl });
+                resolve({
+                    fileName: docs[0].fileName,
+                    fileLink: docs[0].fileUrl
+                });
             } else {
-                reject({ status: false, message: "no fle information found" });
+                reject({
+                    status: false,
+                    message: "no fle information found"
+                });
             }
         });
     });
 }
 /**
  * check if tag validator is valid or not
- * @param {*} request 
+ * @param {*} request
  */
 function checkTagValidator(request) {
     return new Promise((resolve, reject) => {
@@ -763,22 +912,29 @@ function checkTagValidator(request) {
             if (tagValidator[origin][tag]) {
                 if (tagValidator[origin][tag]["table"] == tablename) {
                     if (tagValidator[origin][tag]["shouldvalidate"]) {
-                        tagValidators[tag]
-                            .validate(data)
-                            .then(result => {
-                                resolve(result);
-                            });
+                        tagValidators[tag].validate(data).then(result => {
+                            resolve(result);
+                        });
                     } else {
                         resolve(true);
                     }
                 } else {
-                    reject({ status: false, message: `sorry tag ${tag} is not applicable for table ${tablename}` });
+                    reject({
+                        status: false,
+                        message: `sorry tag ${tag} is not applicable for table ${tablename}`
+                    });
                 }
             } else {
-                reject({ status: false, message: "sorry no tag validator found with the given tag" });
+                reject({
+                    status: false,
+                    message: "sorry no tag validator found with the given tag"
+                });
             }
         } else {
-            reject({ status: false, message: "sorry no tag found in the payload" });
+            reject({
+                status: false,
+                message: "sorry no tag found in the payload"
+            });
         }
     });
 }
@@ -786,33 +942,48 @@ function checkTagValidator(request) {
 function getFeatures(request) {
     let permissionValueAdding = {
         $or: [{
-            rolesAllowedToRead: {
-                $in: request.userInfo.roles
+                rolesAllowedToRead: {
+                    $in: request.userInfo.roles
+                }
+            },
+            {
+                idsAllowedToRead: {
+                    $in: request.userInfo.userId
+                }
             }
-        }, {
-            idsAllowedToRead: {
-                $in: request.userInfo.userId
-            }
-        }]
+        ]
     };
     return new Promise((resolve, reject) => {
-        tables[origin]['feature'].find(permissionValueAdding, "featureName", (err, features) => {
-            if (!err) {
-                if (features.length) {
-                    resolve({ status: true, data: features });
+        tables[origin]["feature"].find(
+            permissionValueAdding,
+            "featureName",
+            (err, features) => {
+                if (!err) {
+                    if (features.length) {
+                        resolve({
+                            status: true,
+                            data: features
+                        });
+                    } else {
+                        reject({
+                            status: false,
+                            message: "No feature found"
+                        });
+                    }
                 } else {
-                    reject({ status: false, message: "No feature found" });
+                    reject({
+                        status: false,
+                        message: err
+                    });
                 }
-            } else {
-                reject({ status: false, message: err });
             }
-        });
+        );
     });
 }
 
 function randomScalingFactor() {
     return Math.floor(Math.random() * 100000 + 1);
-};
+}
 
 function generatePdf(req) {
     return new Promise((resolve, reject) => {
@@ -881,25 +1052,24 @@ function generatePdf(req) {
         //     }
         // };
         const configuration = {
-            type: 'line',
+            type: "line",
             data: req.body.pdfData,
             options: {
                 scales: {
                     xAxes: [{
-                        stacked: false,
+                        stacked: false
                     }],
                     yAxes: [{
                         stacked: true,
                         ticks: {
                             beginAtZero: true,
-                            callback: (value) => '$' + value
+                            callback: value => "$" + value
                         }
                     }]
                 }
             }
         };
-        const chartCallback = (ChartJS) => {
-
+        const chartCallback = ChartJS => {
             // Global config example: https://www.chartjs.org/docs/latest/configuration/
             ChartJS.defaults.global.elements.rectangle.borderWidth = 2;
             // Global plugin example: https://www.chartjs.org/docs/latest/developers/plugins.html
@@ -918,45 +1088,122 @@ function generatePdf(req) {
         //     const stream = canvasRenderService.renderToStream(configuration);
         //     debugger
         // })();
-        const canvasRenderService = new CanvasRenderService(width, height, chartCallback);
-        canvasRenderService.renderToDataURL(configuration).then((imageData) => {
-            var resulthtml = "";
-            resulthtml += '<html>';
-            resulthtml += '<head>';
-            resulthtml += '</head>';
-            resulthtml += `<body>${req.body.style}`;
-            resulthtml += `<div class="row">
+        const canvasRenderService = new CanvasRenderService(
+            width,
+            height,
+            chartCallback
+        );
+        canvasRenderService
+            .renderToDataURL(configuration)
+            .then(imageData => {
+                var resulthtml = "";
+                resulthtml += "<html>";
+                resulthtml += "<head>";
+                resulthtml += "</head>";
+                resulthtml += `<body>${req.body.style}`;
+                resulthtml += `<div class="row">
             ${req.body.html}`;
-            resulthtml += `</div>
+                resulthtml += `</div>
             <script>
             document.getElementById("graph").innerHTML = "<img id='base64image' src='${imageData}' />";
             </script>`;
-            resulthtml += '</body>';
-            resulthtml += '<html>';
-            conversion({ html: resulthtml }, function(err, pdf) {
-                let filename = req.body.filename;
-                if (!err) {
-                    var output = fs.createWriteStream(`C:\storage/${filename}.pdf`)
-                    console.log(pdf.logs);
-                    console.log(pdf.numberOfPages);
-                    // since pdf.stream is a node.js stream you can use it
-                    // to save the pdf to a file (like in this example) or to
-                    // respond an http request.
-                    pdf.stream.pipe(output);
-                    resolve({
-                        status: true,
-                        message: "Pdf generated succesfully",
-                        filename: filename + '.pdf'
+                resulthtml += "</body>";
+                resulthtml += "<html>";
+                conversion({
+                        html: resulthtml
+                    },
+                    function (err, pdf) {
+                        let filename = req.body.filename;
+                        if (!err) {
+                            var output = fs.createWriteStream(`C:\storage/${filename}.pdf`);
+                            console.log(pdf.logs);
+                            console.log(pdf.numberOfPages);
+                            // since pdf.stream is a node.js stream you can use it
+                            // to save the pdf to a file (like in this example) or to
+                            // respond an http request.
+                            pdf.stream.pipe(output);
+                            resolve({
+                                status: true,
+                                message: "Pdf generated succesfully",
+                                filename: filename + ".pdf"
+                            });
+                        } else {
+                            reject({
+                                status: false,
+                                message: err
+                            });
+                        }
+                    }
+                );
+            })
+            .catch(error => {
+                console.log(error);
+            });
+    });
+}
+
+function updatePassword(request) {
+    return new Promise((resolve, reject) => {
+        tables[origin]["user"].find({
+                _id: request.userInfo.userId
+            },
+            (err, docs) => {
+                if (docs) {
+                    bcrypt.genSalt(10, (err, salt) => {
+                        bcrypt.hash(request.body.password, salt, (err, hash) => {
+                            request.body.password = hash;
+                            tables[origin]["user"].updateOne({
+                                    _id: request.userInfo.userId
+                                },
+                                request.body,
+                                (err, doc) => {
+                                    if (!err) {
+                                        if (doc && doc.ok) {
+                                            resolve({
+                                                status: true,
+                                                message: "password changed succesfully"
+                                            });
+                                        } else {
+                                            resolve({
+                                                status: false,
+                                                message: "something went wrong"
+                                            });
+                                        }
+                                    } else {
+                                        resolve({
+                                            status: false,
+                                            message: err
+                                        });
+                                    }
+                                }
+                            );
+                        });
                     });
                 } else {
-                    reject({
+                    resolve({
                         status: false,
-                        message: err
+                        message: "Sorry you are not permitted to update the password"
                     });
                 }
-            });
-        }).catch((error) => {
-            console.log(error);
-        });
+            }
+        );
     });
+
+    //   return new Promise((resolve, reject) => {
+    //     tables[origin]["feature"].find(
+    //       permissionValueAdding,
+    //       "featureName",
+    //       (err, features) => {
+    //         if (!err) {
+    //           if (features.length) {
+    //             resolve({ status: true, data: features });
+    //           } else {
+    //             reject({ status: false, message: "No feature found" });
+    //           }
+    //         } else {
+    //           reject({ status: false, message: err });
+    //         }
+    //       }
+    //     );
+    //   });
 }

@@ -42,6 +42,7 @@ router.post('/uploadFile', middleware.validatetoken, upload.single('file'), data
 router.post('/getFile', middleware.validatetoken, dataController.getFile);
 router.post('/getFeatures', middleware.validatetoken, dataController.getFeatures);
 router.post('/generatePdf', middleware.validatetoken, dataController.generatePdf);
+router.post('/updatePassword', middleware.validatetoken, dataController.updatePassword);
 router.post('/validateToken', middleware.validatetoken, (req, res) => {
     res.status(200).send({
         result: true,

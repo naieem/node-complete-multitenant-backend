@@ -8,7 +8,8 @@ module.exports = {
         uploadFile: uploadFile,
         getFile: getFile,
         getFeatures: getFeatures,
-        generatePdf: generatePdf
+        generatePdf: generatePdf,
+        updatePassword:updatePassword
     }
     /**
      * inserting into database
@@ -120,6 +121,19 @@ function getFeatures(req, res) {
  */
 function generatePdf(req, res) {
     dataHandler.generatePdf(req).then((result) => {
+        res.status(200).send(result);
+    }).catch((err) => {
+        res.status(200).send(err);
+    });
+}
+
+/**
+ * Get list of navigations
+ * @param {*} req 
+ * @param {*} res 
+ */
+function updatePassword(req, res) {
+    dataHandler.updatePassword(req).then((result) => {
         res.status(200).send(result);
     }).catch((err) => {
         res.status(200).send(err);

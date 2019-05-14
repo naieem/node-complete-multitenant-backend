@@ -1,9 +1,9 @@
-var createError = require('http-errors');
+// var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
-const fileUpload = require('express-fileupload');
-var bodyParser = require('body-parser')
+// const fileUpload = require('express-fileupload');
+// var bodyParser = require('body-parser')
 var logger = require('morgan');
 var cors = require('cors');
 var mongoose = require('mongoose');
@@ -89,3 +89,8 @@ function getAllSiteConfiguration() {
         global.sites = sites;
     });
 }
+const PORT = process.env.PORT || 81
+app.listen(PORT, () => {
+    console.log(`App listening to ${PORT}....`)
+    console.log('Press Ctrl+C to quit.')
+})
