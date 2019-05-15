@@ -1059,16 +1059,16 @@ function generatePdf(req) {
     //             }
     //         ]
     //     },
-    //     options: {
-    //         scales: {
-    //             xAxes: [{
-    //                 stacked: false,
-    //             }],
-    //             yAxes: [{
-    //                 stacked: true
-    //             }]
-    //         }
-    //     }
+        // options: {
+        //     scales: {
+        //         xAxes: [{
+        //             stacked: false,
+        //         }],
+        //         yAxes: [{
+        //             stacked: true
+        //         }]
+        //     }
+        // }
     // };
     const configuration = {
       type: "line",
@@ -1084,8 +1084,9 @@ function generatePdf(req) {
             {
               stacked: true,
               ticks: {
-                beginAtZero: true,
-                callback: value => "$" + value
+                min:0,
+                stepSize:1,
+                callback: (value) => value
               }
             }
           ]
@@ -1116,9 +1117,7 @@ function generatePdf(req) {
       height,
       chartCallback
     );
-    canvasRenderService
-      .renderToDataURL(configuration)
-      .then(imageData => {
+    canvasRenderService.renderToDataURL(configuration).then(imageData => {
         var resulthtml = "";
         resulthtml += "<html>";
         resulthtml += "<head>";
