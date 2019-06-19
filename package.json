@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "start":"node ./bin/www",
-        "start:b":"node ./bundle/app.js",
+        "bundle":"node ./bundle/app.js",
         "build":"webpack --config webpack.config.js --mode production"
     },
     "dependencies": {
