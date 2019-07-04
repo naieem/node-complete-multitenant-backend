@@ -20,8 +20,14 @@ app.use(cors());
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(logger('dev'));
-app.use(express.json({limit: '50mb', extended: true}));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({
+    limit: '50mb',
+    extended: true
+}));
+app.use(express.urlencoded({
+    extended: true,
+    limit: '50mb'
+}));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -45,7 +51,7 @@ app.use('/api', apiRouter);
 // });
 
 // error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
     // set locals, only providing error in development
     res.locals.message = err.message;
     res.locals.error = req.app.get('env') === 'development' ? err : {};
@@ -89,8 +95,10 @@ function getAllSiteConfiguration() {
         global.sites = sites;
     });
 }
-const PORT = process.env.PORT || 81
-app.listen(PORT, () => {
-    console.log(`App listening to ${PORT}....`)
-    console.log('Press Ctrl+C to quit.')
-})
+if (process.env.NODE_ENV == 'production') {
+    const PORT = process.env.PORT || 81
+    app.listen(PORT, () => {
+        console.log(`App listening to ${PORT}....`)
+        console.log('Press Ctrl+C to quit.')
+    })
+}

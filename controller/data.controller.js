@@ -1,28 +1,29 @@
 var dataHandler = require('../handler/data.handler');
 module.exports = {
-        insert: insert,
-        getDataByQuery: getDataByQuery,
-        update: update,
-        addRelationData: addRelation,
-        getRelationData: getRelationData,
-        uploadFile: uploadFile,
-        getFile: getFile,
-        getFeatures: getFeatures,
-        generatePdf: generatePdf,
-        updatePassword:updatePassword
-    }
-    /**
-     * inserting into database
-     * @param {*} req 
-     * @param {*} res 
-     */
+    insert: insert,
+    getDataByQuery: getDataByQuery,
+    update: update,
+    addRelationData: addRelation,
+    getRelationData: getRelationData,
+    uploadFile: uploadFile,
+    getFile: getFile,
+    getFeatures: getFeatures,
+    generatePdf: generatePdf,
+    updatePassword: updatePassword,
+    sendMail: sendMail
+}
+/**
+ * inserting into database
+ * @param {*} req 
+ * @param {*} res 
+ */
 function insert(req, res) {
     dataHandler
         .insert(req)
-        .then(function(result) {
+        .then(function (result) {
             res.status(200).send(result);
         })
-        .catch(function(error) {
+        .catch(function (error) {
             res.status(500).send(error);
         });
 }
@@ -34,10 +35,10 @@ function insert(req, res) {
 function getDataByQuery(req, res) {
     dataHandler
         .getData(req)
-        .then(function(result) {
+        .then(function (result) {
             res.status(200).send(result);
         })
-        .catch(function(error) {
+        .catch(function (error) {
             res.status(500).send(error);
         });
 }
@@ -138,4 +139,20 @@ function updatePassword(req, res) {
     }).catch((err) => {
         res.status(200).send(err);
     });
+}
+
+/**
+ * mail sending function
+ * @param {*} req 
+ * @param {*} res 
+ */
+function sendMail(req, res) {
+    dataHandler
+        .sendMail(req)
+        .then(function (result) {
+            res.status(200).send(result);
+        })
+        .catch(function (error) {
+            res.status(500).send(error);
+        });
 }

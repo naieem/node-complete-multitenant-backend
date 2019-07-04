@@ -43,6 +43,7 @@ router.post('/getFile', middleware.validatetoken, dataController.getFile);
 router.post('/getFeatures', middleware.validatetoken, dataController.getFeatures);
 router.post('/generatePdf', middleware.validatetoken, dataController.generatePdf);
 router.post('/updateUserInfo', middleware.validatetoken, dataController.updatePassword);
+router.post('/sendMail', middleware.validatetoken, dataController.sendMail);
 router.post('/validateToken', middleware.validatetoken, (req, res) => {
     res.status(200).send({
         result: true,
