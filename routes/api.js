@@ -44,10 +44,12 @@ router.post('/getFeatures', middleware.validatetoken, dataController.getFeatures
 router.post('/generatePdf', middleware.validatetoken, dataController.generatePdf);
 router.post('/updateUserInfo', middleware.validatetoken, dataController.updatePassword);
 router.post('/sendMail', middleware.validatetoken, dataController.sendMail);
+router.post('/getanonymouseToken', dataController.getanonymousToken);
 router.post('/validateToken', middleware.validatetoken, (req, res) => {
     res.status(200).send({
         result: true,
-        message: 'Login successfull'
+        message: 'Login successfull',
+        userInfo:req.userInfo
     });
 });
 module.exports = router;
