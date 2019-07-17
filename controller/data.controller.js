@@ -1,4 +1,5 @@
 var dataHandler = require('../handler/data.handler');
+var authService = require('../services/auth.service');
 module.exports = {
     insert: insert,
     getDataByQuery: getDataByQuery,
@@ -10,7 +11,8 @@ module.exports = {
     getFeatures: getFeatures,
     generatePdf: generatePdf,
     updatePassword: updatePassword,
-    sendMail: sendMail
+    sendMail: sendMail,
+    getanonymousToken: getanonymousToken
 }
 /**
  * inserting into database
@@ -155,4 +157,21 @@ function sendMail(req, res) {
         .catch(function (error) {
             res.status(500).send(error);
         });
+}
+
+/**
+ * Get anonymous token
+ * @param {*} req 
+ * @param {*} res 
+ */
+function getanonymousToken(req, res) {
+    let payload = {
+        origin: req.headers.origin,
+        roles: ['anonymous']
+    }
+    let token = authService.generateAnonymousToken(payload);
+    res.status(200).send({
+        status:true,
+        token:token
+    });
 }
