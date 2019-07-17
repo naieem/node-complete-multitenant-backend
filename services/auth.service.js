@@ -13,7 +13,8 @@ module.exports = {
     validateToken: validateToken,
     logout: logout,
     getsecurityPermission: getsecurityPermission,
-    changesecurityPermission: changesecurityPermission
+    changesecurityPermission: changesecurityPermission,
+    generateAnonymousToken: generateAnonymousToken
 };
 
 /**
@@ -23,16 +24,16 @@ module.exports = {
  * @param {*} personInfo
  */
 function register(userInfo, personInfo, request) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         findUserByEmail(userInfo.username)
-            .then(function(response) {
+            .then(function (response) {
                 if (response) {
                     resolve({
                         status: false,
                         message: "user already exists with this username"
                     });
                 } else {
-                    tables[origin]["user"].create(userInfo, function(err, result) {
+                    tables[origin]["user"].create(userInfo, function (err, result) {
                         if (err) reject(err);
                         else {
                             personInfo.tag = "Is-A-Person";
@@ -70,7 +71,7 @@ function register(userInfo, personInfo, request) {
                     });
                 }
             })
-            .catch(function(error) {
+            .catch(function (error) {
                 reject(error);
             });
     });
@@ -83,17 +84,17 @@ function login(username, password) {
     var userCriteria = {
         username: username
     };
-    return new Promise(function(resolve, reject) {
-        tables[origin]["user"].find(userCriteria, function(err, docs) {
+    return new Promise(function (resolve, reject) {
+        tables[origin]["user"].find(userCriteria, function (err, docs) {
             if (err) reject(err);
             if (docs && docs.length) {
-                bcrypt.compare(password, docs[0].password, function(errr, res) {
+                bcrypt.compare(password, docs[0].password, function (errr, res) {
                     if (errr) reject(errr);
                     if (res) {
                         tables[origin]["person"].find({
                                 user_id: docs[0]._id
                             },
-                            function(error, personData) {
+                            function (error, personData) {
                                 if (personData && personData.length) {
                                     resolve({
                                         token: generateToken(personData[0]),
@@ -128,9 +129,20 @@ function generateToken(personData) {
     var payload = {
         personId: personData._id,
         userId: personData.user_id,
-        roles: personData.roles
+        roles: personData.roles,
+        origin:origin
     };
     return jwt.sign(payload, secret, {
+        expiresIn: tokenExpiryTime // expires in 5 mins
+    });
+}
+
+/**
+ * Generating anonymous token
+ * @param {*} Payload 
+ */
+function generateAnonymousToken(data) {
+    return jwt.sign(data, secret, {
         expiresIn: tokenExpiryTime // expires in 5 mins
     });
 }
@@ -139,11 +151,11 @@ function generateToken(personData) {
  * @param {*} username
  */
 function findUserByEmail(username) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         var criteria = {
             username: username
         };
-        tables[origin]["user"].find(criteria, function(err, docs) {
+        tables[origin]["user"].find(criteria, function (err, docs) {
             if (err) reject(err);
             if (docs && docs.length) resolve(true);
             resolve(false);
@@ -157,21 +169,21 @@ function findUserByEmail(username) {
  * @param {*} res
  */
 function getLoggedInUserInfo(request) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         validateToken(request.headers.authorization)
-            .then(function(result) {
+            .then(function (result) {
                 if (result) {
                     tables[origin]["person"].find({
                             _id: result.personId
                         },
-                        function(error, personInfo) {
+                        function (error, personInfo) {
                             if (error) reject(error);
                             resolve(personInfo[0]);
                         }
                     );
                 }
             })
-            .catch(function(err) {
+            .catch(function (err) {
                 reject({
                     status: false,
                     message: "You are not authorized to see this information"
@@ -181,8 +193,8 @@ function getLoggedInUserInfo(request) {
 }
 
 function validateToken(token) {
-    return new Promise(function(resolve, reject) {
-        jwt.verify(token, secret, function(err, decoded) {
+    return new Promise(function (resolve, reject) {
+        jwt.verify(token, secret, function (err, decoded) {
             if (err) reject(err);
             resolve(decoded);
         });
@@ -290,7 +302,9 @@ function changesecurityPermission(request) {
                             message: "You have no permission to update this data"
                         });
                     } else {
-                        tables[origin][tablename].update({ _id: itemId }, data, (err, docs) => {
+                        tables[origin][tablename].update({
+                            _id: itemId
+                        }, data, (err, docs) => {
 
                             if (!err) {
                                 resolve({

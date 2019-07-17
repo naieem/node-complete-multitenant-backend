@@ -16,7 +16,7 @@ function validatetoken(req, res, next) {
     if (token) {
         if (!tokenStorage.checkExpiredToken(token)) {
             authService
-                .validateToken(req.headers.authorization)
+                .validateToken(token)
                 .then(function(result) {
                     req.userInfo = result;
                     next();
