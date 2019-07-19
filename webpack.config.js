@@ -10,7 +10,6 @@ module.exports = {
   resolve: {
     extensions: [".js"]
   },
-  externals: [nodeExternals()],
   module: {
     rules: [
       {
