@@ -113,6 +113,12 @@ function insert(request) {
                               status: false,
                               message: "Duplicate item id found"
                             });
+                            else{
+                              return reject({
+                                status: false,
+                                message: err.message
+                              });
+                            }
                         }
                         return resolve({
                           status: true,
