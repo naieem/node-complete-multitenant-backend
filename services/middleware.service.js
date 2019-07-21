@@ -12,7 +12,9 @@ module.exports = {
  * @param {*} next 
  */
 function validatetoken(req, res, next) {
-    let token = req.headers && req.headers.authorization ? req.headers.authorization : (req.cookies && req.cookies[req.headers.origin] ? req.cookie[req.headers.origin] : null )
+    let origin = req.headers.origin;
+    origin=origin.replace("http://", "");
+    let token = req.headers && req.headers.authorization ? req.headers.authorization : (req.cookies && req.cookies[origin] ? req.cookies[origin] : null )
     if (token) {
         if (!tokenStorage.checkExpiredToken(token)) {
             authService

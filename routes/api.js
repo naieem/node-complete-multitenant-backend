@@ -40,6 +40,7 @@ router.post('/getrelation', middleware.validatetoken, dataController.getRelation
 router.post('/getByQuery', middleware.validatetoken, dataController.getDataByQuery);
 router.post('/uploadFile', middleware.validatetoken, upload.single('file'), dataController.uploadFile);
 router.post('/getFile', middleware.validatetoken, dataController.getFile);
+router.post('/deleteFile', middleware.validatetoken, dataController.deleteFile);
 router.post('/getFeatures', middleware.validatetoken, dataController.getFeatures);
 router.post('/generatePdf', middleware.validatetoken, dataController.generatePdf);
 router.post('/updateUserInfo', middleware.validatetoken, dataController.updatePassword);

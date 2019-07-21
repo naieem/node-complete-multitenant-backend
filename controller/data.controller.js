@@ -12,7 +12,8 @@ module.exports = {
     generatePdf: generatePdf,
     updatePassword: updatePassword,
     sendMail: sendMail,
-    getanonymousToken: getanonymousToken
+    getanonymousToken: getanonymousToken,
+    deleteFile:deleteFile
 }
 /**
  * inserting into database
@@ -100,6 +101,19 @@ function uploadFile(req, res) {
  */
 function getFile(req, res) {
     dataHandler.getFiles(req).then((result) => {
+        res.status(200).send(result);
+    }).catch((err) => {
+        res.status(500).send(err);
+    });
+}
+
+/**
+ * Delete file function handler
+ * @param {*} req 
+ * @param {*} res 
+ */
+function deleteFile(req, res) {
+    dataHandler.deleteFiles(req).then((result) => {
         res.status(200).send(result);
     }).catch((err) => {
         res.status(500).send(err);

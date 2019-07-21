@@ -15,7 +15,8 @@ var apiRouter = require('./routes/api');
 var site = require('./tables/core/site.table');
 var tables = require('./tables/tables');
 var app = express();
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({origin:true,credentials: true}));
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -28,17 +29,18 @@ app.use(express.urlencoded({
     extended: true,
     limit: '50mb'
 }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((req, res, next) => {
-    if (!sites.includes(req.headers.origin)) {
+    let origin = req.headers.origin;
+    origin=origin.replace("http://", "");
+    if (!sites.includes(origin)) {
         res.json(200, {
             status: false,
             message: 'Site not registered'
         });
     } else {
-        global.origin = req.headers.origin;
+        global.origin = origin;
         next();
     }
 });
@@ -95,10 +97,10 @@ function getAllSiteConfiguration() {
         global.sites = sites;
     });
 }
-if (process.env.NODE_ENV == 'production') {
-    const PORT = process.env.PORT ||4000
+// if (process.env.NODE_ENV == 'production') {
+    const PORT = process.env.PORT ||5000
     app.listen(PORT, () => {
         console.log(`App listening to ${PORT}....`)
         console.log('Press Ctrl+C to quit.')
     })
-}
+// }

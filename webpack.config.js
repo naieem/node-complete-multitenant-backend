@@ -8,7 +8,7 @@ module.exports = {
   },
   target:"node",
   resolve: {
-    extensions: [".js"]
+    extensions: [".js",".jsx"]
   },
   module: {
     rules: [
