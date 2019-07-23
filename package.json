@@ -5,7 +5,7 @@
     "scripts": {
         "start": "set NODE_ENV=development&& node ./bin/www",
         "bundle": "node ./bundle/app.js",
-        "build": "webpack --config webpack.config.js --mode production"
+        "build": "webpack --config webpack.config.js --mode production  --progress --colors"
     },
     "dependencies": {
         "aws-sdk": "^2.395.0",
