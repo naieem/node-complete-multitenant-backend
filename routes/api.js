@@ -35,6 +35,7 @@ router.post('/logout', middleware.validatetoken, autoController.logout);
 router.post('/getloggeInUserInfo', autoController.getLoggedInUserInfo);
 router.post('/insert', middleware.validatetoken, dataController.insert);
 router.post('/update', middleware.validatetoken, dataController.update);
+router.post('/delete', middleware.validatetoken, dataController.deleteData);
 router.post('/addrelation', middleware.validatetoken, dataController.addRelationData);
 router.post('/getrelation', middleware.validatetoken, dataController.getRelationData);
 router.post('/getByQuery', middleware.validatetoken, dataController.getDataByQuery);
