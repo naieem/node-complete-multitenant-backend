@@ -44,7 +44,8 @@ module.exports = {
   generatePdf: generatePdf,
   updatePassword: updatePassword,
   sendMail: sendMail,
-  deleteFiles: deleteFiles
+  deleteFiles: deleteFiles,
+  deleteData: deleteData
 };
 /**
  * inserting data in the table
@@ -58,7 +59,7 @@ function insert(request) {
   // removing the permissions if some hacker tries to add them with data source
   data = removePermissionRelatedData(data, fieldsToBePushedAndRemoved);
   data.created_at = new Date();
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     if (tables[origin][tablename]) {
       checkTagValidator(request)
         .then(result => {
@@ -66,8 +67,7 @@ function insert(request) {
             if (restrictedTables.includes(tablename)) {
               reject({
                 status: false,
-                message:
-                  "you are not allowed to perform any kind of action to " +
+                message: "you are not allowed to perform any kind of action to " +
                   tablename +
                   " table"
               });
@@ -92,7 +92,7 @@ function insert(request) {
                      * adding default permissions with the data to be saved
                      */
                     if (defaultPermissions) {
-                      Object.keys(defaultPermissions).forEach(function(
+                      Object.keys(defaultPermissions).forEach(function (
                         key,
                         idx
                       ) {
@@ -103,7 +103,7 @@ function insert(request) {
                         }
                       });
 
-                      tables[origin][tablename].create(data, function(
+                      tables[origin][tablename].create(data, function (
                         err,
                         docs
                       ) {
@@ -128,8 +128,7 @@ function insert(request) {
                     } else {
                       resolve({
                         status: false,
-                        message:
-                          "sorry no default permission found for the table " +
+                        message: "sorry no default permission found for the table " +
                           tablename
                       });
                     }
@@ -159,12 +158,54 @@ function insert(request) {
     }
   });
 }
+
+/**
+ * deleting data from the table
+ * @param {*} tablename (string)
+ * @param {*} data (object)
+ */
+function deleteData(request) {
+  var tablename = request.body.table;
+  var query = request.body.query;
+  return new Promise(function (resolve, reject) {
+    if (tables[origin][tablename]) {
+      /* users permission checking condition added */
+      let permissionValueAdding = {
+        $or: [{
+            rolesAllowedToRead: {
+              $in: request.userInfo.roles
+            }
+          },
+          {
+            idsAllowedToRead: {
+              $in: request.userInfo.userId
+            }
+          }
+        ]
+      };
+      query = _.merge(query, permissionValueAdding);
+      tables[origin][tablename].deleteMany(query, (err) => {
+        if (!err) {
+          resolve({
+            status: true,
+            message: "Deletion succesfull"
+          });
+        }
+      });
+    } else {
+      resolve({
+        status: false,
+        message: "No table found with name " + tablename
+      });
+    }
+  });
+}
 /**
  * Update function call handler
  * @param {*} request
  */
 function update(request) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     var tablename = request.body.table;
     var data = request.body.data;
     var tag = request.body.data.tag;
@@ -180,8 +221,7 @@ function update(request) {
             if (restrictedTables.includes(tablename)) {
               reject({
                 status: false,
-                message:
-                  "you are not allowed to perform any kind of action to " +
+                message: "you are not allowed to perform any kind of action to " +
                   tablename +
                   " table"
               });
@@ -195,17 +235,16 @@ function update(request) {
               checkPermission(request, "update")
                 .then(res => {
                   checkPermissionToUpdate(
-                    tablename,
-                    data._id,
-                    currenUserRole,
-                    currentUserId,
-                    request
-                  )
+                      tablename,
+                      data._id,
+                      currenUserRole,
+                      currentUserId,
+                      request
+                    )
                     .then(result => {
                       changeObserver(request).then(observerResponse => {
                         if (observerResponse) {
-                          tables[origin][tablename].updateOne(
-                            {
+                          tables[origin][tablename].updateOne({
                               _id: data._id
                             },
                             data,
@@ -260,16 +299,14 @@ function changeObserver(request) {
   var counter = 0;
   console.log("change observer called");
   return new Promise((resolve, reject) => {
-    tables[origin]["changeobserver"].find(
-      {
+    tables[origin]["changeobserver"].find({
         parentTable: tablename
       },
-      function(err, docs) {
+      function (err, docs) {
         if (!err) {
           if (docs && docs.length) {
             console.log("change observer data found");
-            tables[origin][tablename].find(
-              {
+            tables[origin][tablename].find({
                 _id: data._id
               },
               (error, parentTableData) => {
@@ -279,14 +316,11 @@ function changeObserver(request) {
                     tables[origin][element.childTable] &&
                     data[element.parentField]
                   ) {
-                    tables[origin][element.childTable].update(
-                      {
+                    tables[origin][element.childTable].update({
                         [element.childQueryField]: parentData["id"]
-                      },
-                      {
+                      }, {
                         [element.childField]: data[element.parentField]
-                      },
-                      {
+                      }, {
                         multi: true
                       },
                       (err, info) => {
@@ -321,8 +355,6 @@ function changeObserver(request) {
   });
 }
 
-function deleteData() {}
-
 /**
  * Query the data in the database
  * @param {*} request (whole request object)
@@ -333,17 +365,17 @@ function getData(request) {
   var populateConfig = request.body.populate ? request.body.populate : null;
   var query = request.body.query;
   var page = request.body.page ? request.body.page : 0;
-  var rowsPerPage = request.body.count
-    ? request.body.count
-    : DEFAULTNUMBEROFROWSTORETURN;
+  var rowsPerPage = request.body.count ?
+    request.body.count :
+    DEFAULTNUMBEROFROWSTORETURN;
   var fields =
-    request.body.fields && request.body.fields.length
-      ? request.body.fields
-      : null;
-  return new Promise(function(resolve, reject) {
+    request.body.fields && request.body.fields.length ?
+    request.body.fields :
+    null;
+  return new Promise(function (resolve, reject) {
     if (tables[origin][tablename]) {
       getUserReadableData(tablename)
-        .then(function(readableFields) {
+        .then(function (readableFields) {
           /** if fields presents in the request body then check that first
            * else use the user readable fields coming from table userreadable data fields
            */
@@ -359,8 +391,7 @@ function getData(request) {
               reject({
                 status: false,
                 fields: falseList,
-                message:
-                  "your query fields are not present in the user readable list"
+                message: "your query fields are not present in the user readable list"
               });
             } else {
               queryfields = fields.join(" ");
@@ -370,8 +401,7 @@ function getData(request) {
           }
           /* users permission checking condition added */
           let permissionValueAdding = {
-            $or: [
-              {
+            $or: [{
                 rolesAllowedToRead: {
                   $in: request.userInfo.roles
                 }
@@ -386,14 +416,14 @@ function getData(request) {
           // query = merge_Objects(query, permissionValueAdding);
           query = _.merge(query, permissionValueAdding);
           pullDataWithFields(
-            tablename,
-            query,
-            queryfields,
-            page,
-            rowsPerPage,
-            populateConfig,
-            request
-          )
+              tablename,
+              query,
+              queryfields,
+              page,
+              rowsPerPage,
+              populateConfig,
+              request
+            )
             .then(docs => {
               getTotalCount(tablename, query, request)
                 .then(count => {
@@ -411,7 +441,7 @@ function getData(request) {
               reject(error);
             });
         })
-        .catch(function(err) {
+        .catch(function (err) {
           reject(err);
         });
     } else {
@@ -487,9 +517,9 @@ function pullDataWithFields(
   if (populateConfig && populateConfig.length) {
     populateConfig.forEach(populate => {
       if (populate.property && populate.fields.length) {
-        populationFields = populate.fields.length
-          ? removeSecurityFieldsFromPopulation(populate.fields)
-          : null;
+        populationFields = populate.fields.length ?
+          removeSecurityFieldsFromPopulation(populate.fields) :
+          null;
         if (populationFields.length) {
           populationFields = populationFields.join(" ");
           dataQuery.populate(populate.property, populationFields);
@@ -525,7 +555,7 @@ function pullDataWithFields(
  */
 function getTotalCount(tableName, query, request) {
   return new Promise((resolve, reject) => {
-    tables[origin][tableName].find(query).count(function(err, count) {
+    tables[origin][tableName].find(query).count(function (err, count) {
       if (err) reject(err);
       else resolve(count);
     });
@@ -536,13 +566,12 @@ function getTotalCount(tableName, query, request) {
  * @param {*} tablename
  */
 function getUserReadableData(tablename) {
-  return new Promise(function(resolve, reject) {
-    tables[origin]["userreadabledata"].find(
-      {
+  return new Promise(function (resolve, reject) {
+    tables[origin]["userreadabledata"].find({
         tableName: tablename
       },
       "readableFields",
-      function(err, docs) {
+      function (err, docs) {
         if (err) return reject(err);
         if (docs && docs.length) {
           resolve(docs[0].readableFields);
@@ -562,8 +591,7 @@ function getUserReadableData(tablename) {
  */
 function getDefaultPermission(tableName) {
   return new Promise((resolve, reject) => {
-    tables[origin]["table"].find(
-      {
+    tables[origin]["table"].find({
         tableName: tableName
       },
       (error, docs) => {
@@ -589,8 +617,7 @@ function checkPermission(request, permissionType) {
   };
 
   return new Promise((resolve, reject) => {
-    tables[origin]["table"].find(
-      {
+    tables[origin]["table"].find({
         tableName: tableName
       },
       (err, docs) => {
@@ -631,8 +658,7 @@ function checkPermissionToUpdate(tablename, itemId, roles, userId, request) {
      */
     var query = {
       _id: itemId,
-      $or: [
-        {
+      $or: [{
           rolesAllowedToUpdate: {
             $in: roles
           }
@@ -690,8 +716,7 @@ function addRelationShip(data) {
  */
 function checkRelationMapper(parentTablename, childTablename) {
   return new Promise((resolve, reject) => {
-    tables.relationmapper.find(
-      {
+    tables.relationmapper.find({
         parentTableName: parentTablename,
         childTableName: childTablename
       },
@@ -720,8 +745,7 @@ function checkAndInsertDataToRelationShipTable(data) {
   var childId = data.childTableId;
   return new Promise((resolve, reject) => {
     // if parent table has data
-    tables[parentTableName].find(
-      {
+    tables[parentTableName].find({
         _id: parentId
       },
       (err, docs) => {
@@ -733,8 +757,7 @@ function checkAndInsertDataToRelationShipTable(data) {
         }
         if (docs && docs.length) {
           // check if child table has data
-          tables[childTableName].find(
-            {
+          tables[childTableName].find({
               _id: childId
             },
             (error, childDocs) => {
@@ -802,8 +825,7 @@ function getRelationData(request) {
                   _id: {
                     $in: childTableIds
                   },
-                  $or: [
-                    {
+                  $or: [{
                       rolesAllowedToRead: {
                         $in: request.userInfo.roles
                       }
@@ -899,8 +921,7 @@ function getFiles(request) {
   return new Promise((resolve, reject) => {
     let query = {
       _id: request.body.fileId,
-      $or: [
-        {
+      $or: [{
           rolesAllowedToRead: {
             $in: request.userInfo.roles
           }
@@ -936,8 +957,7 @@ function deleteFiles(request) {
   return new Promise((resolve, reject) => {
     let query = {
       _id: request.body.fileId,
-      $or: [
-        {
+      $or: [{
           rolesAllowedToRead: {
             $in: request.userInfo.roles
           }
@@ -1015,8 +1035,7 @@ function checkTagValidator(request) {
 
 function getFeatures(request) {
   let permissionValueAdding = {
-    $or: [
-      {
+    $or: [{
         rolesAllowedToRead: {
           $in: request.userInfo.roles
         }
@@ -1131,21 +1150,17 @@ function generatePdf(req) {
       data: req.body.pdfData,
       options: {
         scales: {
-          xAxes: [
-            {
-              stacked: false
+          xAxes: [{
+            stacked: false
+          }],
+          yAxes: [{
+            stacked: true,
+            ticks: {
+              min: 0,
+              stepSize: 1,
+              callback: value => value
             }
-          ],
-          yAxes: [
-            {
-              stacked: true,
-              ticks: {
-                min: 0,
-                stepSize: 1,
-                callback: value => value
-              }
-            }
-          ]
+          }]
         }
       }
     };
@@ -1169,49 +1184,47 @@ function generatePdf(req) {
     //     debugger
     // })();
     var resulthtml = "";
-        resulthtml += "<html>";
-        resulthtml +=
-          "<head><meta content='text/html; charset=utf-8' http-equiv='Content-Type'>";
-        resulthtml += "</head>";
-        resulthtml += `<body>${req.body.style}`;
-        resulthtml += `<div class="row">
+    resulthtml += "<html>";
+    resulthtml +=
+      "<head><meta content='text/html; charset=utf-8' http-equiv='Content-Type'>";
+    resulthtml += "</head>";
+    resulthtml += `<body>${req.body.style}`;
+    resulthtml += `<div class="row">
             ${req.body.html}`;
-        resulthtml += `</div>`;
-        resulthtml += "</body>";
-        resulthtml += "<html>";
-        conversion(
-          {
-            html: resulthtml,
-            footer:
-              '<div style="text-align:right;float:left;width:100%;margin-top:15px;">&copy; 2019 Secure Link Services AG. All Rights Reserved.</div>',
-            paperSize: {
-              width: "12in",
-              height: "12in"
-            }
-          },
-          function(err, pdf) {
-            let filename = req.body.filename;
-            if (!err) {
-              var output = fs.createWriteStream(`C:\storage/${filename}.pdf`);
-              console.log(pdf.logs);
-              console.log(pdf.numberOfPages);
-              // since pdf.stream is a node.js stream you can use it
-              // to save the pdf to a file (like in this example) or to
-              // respond an http request.
-              pdf.stream.pipe(output);
-              resolve({
-                status: true,
-                message: "Pdf generated succesfully",
-                filename: filename + ".pdf"
-              });
-            } else {
-              reject({
-                status: false,
-                message: err
-              });
-            }
-          }
-        );
+    resulthtml += `</div>`;
+    resulthtml += "</body>";
+    resulthtml += "<html>";
+    conversion({
+        html: resulthtml,
+        footer: '<div style="text-align:right;float:left;width:100%;margin-top:15px;">&copy; 2019 Secure Link Services AG. All Rights Reserved.</div>',
+        paperSize: {
+          width: "12in",
+          height: "12in"
+        }
+      },
+      function (err, pdf) {
+        let filename = req.body.filename;
+        if (!err) {
+          var output = fs.createWriteStream(`${globalConfig.storageLocation}${filename}.pdf`);
+          console.log(pdf.logs);
+          console.log(pdf.numberOfPages);
+          // since pdf.stream is a node.js stream you can use it
+          // to save the pdf to a file (like in this example) or to
+          // respond an http request.
+          pdf.stream.pipe(output);
+          resolve({
+            status: true,
+            message: "Pdf generated succesfully",
+            filename: filename + ".pdf"
+          });
+        } else {
+          reject({
+            status: false,
+            message: err
+          });
+        }
+      }
+    );
   });
 }
 
@@ -1262,8 +1275,7 @@ function updatePassword(request) {
  */
 function changePassword(request) {
   return new Promise((resolve, reject) => {
-    tables[origin]["user"].find(
-      {
+    tables[origin]["user"].find({
         _id: request.userInfo.userId
       },
       (err, docs) => {
@@ -1271,8 +1283,7 @@ function changePassword(request) {
           bcrypt.genSalt(10, (err, salt) => {
             bcrypt.hash(request.body.password, salt, (err, hash) => {
               request.body.password = hash;
-              tables[origin]["user"].updateOne(
-                {
+              tables[origin]["user"].updateOne({
                   _id: request.userInfo.userId
                 },
                 request.body,
@@ -1311,8 +1322,7 @@ function changePassword(request) {
  */
 function updatePersInfo(request) {
   return new Promise((resolve, reject) => {
-    tables[origin]["person"].updateOne(
-      {
+    tables[origin]["person"].updateOne({
         _id: request.body.data["_id"]
       },
       request.body.data,
@@ -1349,13 +1359,13 @@ function sendMail(request) {
     let contentType = mailPayload.getHeaders()["content-type"];
     if (process.env.NODE_ENV == "production") {
       axios({
-        method: "post",
-        url: globalConfig.mailServiceUrl,
-        data: mailPayload,
-        headers: {
-          "Content-Type": contentType
-        }
-      })
+          method: "post",
+          url: globalConfig.mailServiceUrl,
+          data: mailPayload,
+          headers: {
+            "Content-Type": contentType
+          }
+        })
         .then(response => {
           if (
             response.data.status.accepted.length &&
