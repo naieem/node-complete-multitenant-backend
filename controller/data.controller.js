@@ -13,7 +13,8 @@ module.exports = {
     updatePassword: updatePassword,
     sendMail: sendMail,
     getanonymousToken: getanonymousToken,
-    deleteFile:deleteFile
+    deleteFile:deleteFile,
+    deleteData:deleteData
 }
 /**
  * inserting into database
@@ -30,6 +31,23 @@ function insert(req, res) {
             res.status(500).send(error);
         });
 }
+
+/**
+ * deleting from database
+ * @param {*} req 
+ * @param {*} res 
+ */
+function deleteData(req, res) {
+    dataHandler
+        .deleteData(req)
+        .then(function (result) {
+            res.status(200).send(result);
+        })
+        .catch(function (error) {
+            res.status(500).send(error);
+        });
+}
+
 /**
  * getting data by query
  * @param {*} req 

@@ -33,14 +33,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((req, res, next) => {
     let origin = req.headers.origin;
-    origin=origin.replace("http://", "");
-    if (!sites.includes(origin)) {
+    // origin=origin.replace("http://", "");
+    if (!sites.includes(req.headers.origin)) {
         res.json(200, {
             status: false,
             message: 'Site not registered'
         });
     } else {
-        global.origin = origin;
+        global.origin = req.headers.origin;
         next();
     }
 });
@@ -97,10 +97,10 @@ function getAllSiteConfiguration() {
         global.sites = sites;
     });
 }
-if (process.env.NODE_ENV == 'production') {
+// if (process.env.NODE_ENV == 'production') {
     const PORT = process.env.PORT ||5000
     app.listen(PORT, () => {
         console.log(`App listening to ${PORT}....`)
         console.log('Press Ctrl+C to quit.')
     })
-}
+// }
