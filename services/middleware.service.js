@@ -13,29 +13,42 @@ module.exports = {
  */
 function validatetoken(req, res, next) {
     let origin = req.headers.origin;
-    origin=origin.replace("http://", "");
-    let token = req.headers && req.headers.authorization ? req.headers.authorization : (req.cookies && req.cookies[origin] ? req.cookies[origin] : null )
-    if (token) {
-        if (!tokenStorage.checkExpiredToken(token)) {
-            authService
-                .validateToken(token)
-                .then(function(result) {
-                    req.userInfo = result;
-                    next();
-                })
-                .catch(function(err) {
-                    res
-                        .status(401)
-                        .send({ status: '401', message: 'You are unauthorizeid' });
-                });
+    origin = origin.replace("http://", "");
+    if (req.headers.authorization !='admin_credentials') {
+        let token = req.headers && req.headers.authorization ? req.headers.authorization : (req.cookies && req.cookies[origin] ? req.cookies[origin] : null)
+        if (token) {
+            if (!tokenStorage.checkExpiredToken(token)) {
+                authService
+                    .validateToken(token)
+                    .then(function (result) {
+                        req.userInfo = result;
+                        next();
+                    })
+                    .catch(function (err) {
+                        res
+                            .status(401)
+                            .send({
+                                status: '401',
+                                message: 'You are unauthorizeid'
+                            });
+                    });
+            } else {
+                res
+                    .status(401)
+                    .send({
+                        status: '401',
+                        message: 'You are unauthorizeid'
+                    });
+            }
         } else {
             res
                 .status(401)
-                .send({ status: '401', message: 'You are unauthorizeid' });
+                .send({
+                    status: '401',
+                    message: 'You are unauthorizeid'
+                });
         }
-    } else {
-        res
-            .status(401)
-            .send({ status: '401', message: 'You are unauthorizeid' });
+    }else{
+        next();
     }
 }

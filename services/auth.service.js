@@ -82,7 +82,8 @@ function register(userInfo, personInfo, request) {
  */
 function login(username, password) {
     var userCriteria = {
-        username: username
+        username: username,
+        active:true
     };
     return new Promise(function (resolve, reject) {
         tables[origin]["user"].find(userCriteria, function (err, docs) {
@@ -118,7 +119,7 @@ function login(username, password) {
             } else {
                 resolve({
                     status: false,
-                    message: "sorry user found with your given criteria"
+                    message: "sorry no user found with your given criteria"
                 });
             }
         });
