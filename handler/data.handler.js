@@ -400,21 +400,22 @@ function getData(request) {
             queryfields = readableFields.join(" ");
           }
           /* users permission checking condition added */
-          let permissionValueAdding = {
-            $or: [{
-                rolesAllowedToRead: {
-                  $in: request.userInfo.roles
+          if (request.userInfo && request.headers.authorization != "admin_credentials") {
+            let permissionValueAdding = {
+              $or: [{
+                  rolesAllowedToRead: {
+                    $in: request.userInfo.roles
+                  }
+                },
+                {
+                  idsAllowedToRead: {
+                    $in: request.userInfo.userId
+                  }
                 }
-              },
-              {
-                idsAllowedToRead: {
-                  $in: request.userInfo.userId
-                }
-              }
-            ]
-          };
-          // query = merge_Objects(query, permissionValueAdding);
-          query = _.merge(query, permissionValueAdding);
+              ]
+            };
+            query = _.merge(query, permissionValueAdding);
+          }
           pullDataWithFields(
               tablename,
               query,
