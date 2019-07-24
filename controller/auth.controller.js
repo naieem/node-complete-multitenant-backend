@@ -19,49 +19,53 @@ module.exports = {
 function register(req, res) {
     let roles = req.body.roles;
     let roleFound = false;
-    if (req.body.roles && req.body.roles.length) {
-        tables[origin]['role'].find((err, allroles) => {
-            if (!err) {
+    if (req.headers.authorization != 'admin_credentials') {
+        if (req.body.roles && req.body.roles.length) {
+            tables[origin]['role'].find((err, allroles) => {
+                if (!err) {
 
-                roles.forEach(role => {
-                    let roli = _.find(allroles, function(o) {
-                        return o.rolename == role;
+                    roles.forEach(role => {
+                        let roli = _.find(allroles, function (o) {
+                            return o.rolename == role;
+                        });
+                        if (roli)
+                            roleFound = true;
+                        else
+                            roleFound = false;
                     });
-                    if (roli)
-                        roleFound = true;
-                    else
-                        roleFound = false;
-                });
-                if (roleFound) {
-                    tables[origin]['rolemap'].find({
-                        $and: [{
-                            rolename: {
-                                $in: roles
-                            }
-                        }, {
-                            parents: {
-                                $in: req.userInfo.roles
-                            }
-                        }]
-                    }, (error, hierarchy) => {
+                    if (roleFound) {
+                        tables[origin]['rolemap'].find({
+                            $and: [{
+                                rolename: {
+                                    $in: roles
+                                }
+                            }, {
+                                parents: {
+                                    $in: req.userInfo.roles
+                                }
+                            }]
+                        }, (error, hierarchy) => {
 
-                        if (!error) {
-                            if (hierarchy && hierarchy.length) {
-                                doUserRegistration(req, res);
+                            if (!error) {
+                                if (hierarchy && hierarchy.length) {
+                                    doUserRegistration(req, res);
+                                } else {
+                                    sendErrorMessage(res, "Rolemap not found for " + req.userInfo.roles);
+                                }
                             } else {
-                                sendErrorMessage(res, "Rolemap not found for " + req.userInfo.roles);
+                                sendErrorMessage(res, error);
                             }
-                        } else {
-                            sendErrorMessage(res, error);
-                        }
-                    });
+                        });
+                    } else {
+                        sendErrorMessage(res, "Expected Role not Found");
+                    }
                 } else {
-                    sendErrorMessage(res, "Expected Role not Found");
+                    sendErrorMessage(res, err);
                 }
-            } else {
-                sendErrorMessage(res, err);
-            }
-        });
+            });
+        }
+    } else {
+        doUserRegistration(req, res);
     }
 
 }
@@ -76,9 +80,9 @@ function doUserRegistration(req, res) {
         .uuid();
     req.body.created_at = new Date();
     req.body._id = userId;
-    bcrypt.genSalt(10, function(err, salt) {
+    bcrypt.genSalt(10, function (err, salt) {
         bcrypt
-            .hash(req.body.password, salt, function(err, hash) {
+            .hash(req.body.password, salt, function (err, hash) {
                 req.body.password = hash;
                 var userInfo = req.body;
                 req.body.personInfo['_id'] = faker.random.uuid();
@@ -86,12 +90,12 @@ function doUserRegistration(req, res) {
                 req.body.personInfo['roles'] = req.body.roles;
                 authService
                     .register(userInfo, req.body.personInfo, req)
-                    .then(function(result) {
+                    .then(function (result) {
                         res
                             .status(200)
                             .send(result);
                     })
-                    .catch(function(error) {
+                    .catch(function (error) {
                         res
                             .status(500)
                             .send(error);
@@ -107,7 +111,10 @@ function doUserRegistration(req, res) {
 function sendErrorMessage(response, message) {
     response
         .status(200)
-        .send({ status: false, message: message });
+        .send({
+            status: false,
+            message: message
+        });
 }
 /**
  * logged in users
@@ -117,12 +124,12 @@ function sendErrorMessage(response, message) {
 function login(req, res) {
     authService
         .login(req.body.username, req.body.password)
-        .then(function(result) {
+        .then(function (result) {
             res
                 .status(200)
                 .send(result);
         })
-        .catch(function(err) {
+        .catch(function (err) {
             res
                 .status(500)
                 .send(err);
@@ -136,13 +143,16 @@ function login(req, res) {
 function getLoggedInUserInfo(req, res) {
     authService
         .getLoggedInUserInfo(req)
-        .then(function(result) {
+        .then(function (result) {
 
             res
                 .status(200)
-                .send({ status: true, data: result });
+                .send({
+                    status: true,
+                    data: result
+                });
         })
-        .catch(function(error) {
+        .catch(function (error) {
             res
                 .status(403)
                 .send(error);

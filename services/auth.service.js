@@ -24,6 +24,7 @@ module.exports = {
  * @param {*} personInfo
  */
 function register(userInfo, personInfo, request) {
+    userInfo['active']= false;
     return new Promise(function (resolve, reject) {
         findUserByEmail(userInfo.username)
             .then(function (response) {
@@ -45,9 +46,11 @@ function register(userInfo, personInfo, request) {
                                 userInfo: request.userInfo
                             }
                             dataHandler.insert(personPayload).then((response) => {
+                                AppCache.set(personInfo.user_id,"inactive",60*5);
                                 resolve({
                                     status: true,
-                                    personId: response.itemId
+                                    personId: response.itemId,
+                                    userId:personInfo.user_id
                                 });
                             }).catch((err) => {
                                 resolve({

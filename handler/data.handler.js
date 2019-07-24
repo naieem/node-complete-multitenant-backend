@@ -97,7 +97,7 @@ function insert(request) {
                         idx
                       ) {
                         if (defaultPermissions[key] == "owner") {
-                          data[key] = request.userInfo.userId;
+                          data[key] = request.userInfo && request.userInfo.userId || request.body.data.user_id;
                         } else {
                           data[key] = defaultPermissions[key];
                         }
@@ -611,37 +611,41 @@ function getDefaultPermission(tableName) {
  */
 function checkPermission(request, permissionType) {
   var tableName = request.body.table;
-  var currenUserRole = request.userInfo.roles;
+  var currenUserRole = request.userInfo && request.userInfo.roles ? request.userInfo.roles : null;
   var permissionFields = {
     insert: "defaultRolesToWrite",
     update: "defaultRolesToUpdate"
   };
 
   return new Promise((resolve, reject) => {
-    tables[origin]["table"].find({
-        tableName: tableName
-      },
-      (err, docs) => {
-        if (err) reject(err);
-        if (docs && docs.length) {
-          var rolesWhoPermitted = docs[0][permissionFields[permissionType]];
-          currenUserRole.forEach(role => {
-            if (rolesWhoPermitted.includes(role)) {
-              return resolve(true);
-            }
-          });
-          return reject({
-            status: false,
-            message: "You are not permitted for this action"
-          });
-        } else {
-          reject({
-            status: false,
-            message: "No permission found for your action"
-          });
+    if (currenUserRole) {
+      tables[origin]["table"].find({
+          tableName: tableName
+        },
+        (err, docs) => {
+          if (err) reject(err);
+          if (docs && docs.length) {
+            var rolesWhoPermitted = docs[0][permissionFields[permissionType]];
+            currenUserRole.forEach(role => {
+              if (rolesWhoPermitted.includes(role)) {
+                return resolve(true);
+              }
+            });
+            return reject({
+              status: false,
+              message: "You are not permitted for this action"
+            });
+          } else {
+            reject({
+              status: false,
+              message: "No permission found for your action"
+            });
+          }
         }
-      }
-    );
+      );
+    } else {
+      resolve(true);
+    }
   });
 }
 /**
@@ -1353,37 +1357,37 @@ function updatePersInfo(request) {
 function sendMail(request) {
   let mailPayload = new FormData();
   // const mails = ["nms@selise.ch", "raquib.hassan@selise.ch"];
-  // mailPayload.append('mails', mails);
+  mailPayload.append('recipient', request.body.recipient);
   mailPayload.append("text", request.body.mailBody);
   mailPayload.append("subject", request.body.subject);
   return new Promise((resolve, reject) => {
     let contentType = mailPayload.getHeaders()["content-type"];
-    if (process.env.NODE_ENV == "production") {
-      axios({
-          method: "post",
-          url: globalConfig.mailServiceUrl,
-          data: mailPayload,
-          headers: {
-            "Content-Type": contentType
-          }
-        })
-        .then(response => {
-          if (
-            response.data.status.accepted.length &&
-            !response.data.status.rejected.length
-          ) {
-            resolve({
-              status: true
-            });
-          }
-        })
-        .catch(err => {
-          reject(JSON.stringify(err));
-        });
-    } else {
-      resolve({
-        status: true
+    // if (process.env.NODE_ENV == "production") {
+    axios({
+        method: "post",
+        url: globalConfig.mailServiceUrl,
+        data: mailPayload,
+        headers: {
+          "Content-Type": contentType
+        }
+      })
+      .then(response => {
+        if (
+          response.data.status.accepted.length &&
+          !response.data.status.rejected.length
+        ) {
+          resolve({
+            status: true
+          });
+        }
+      })
+      .catch(err => {
+        reject(JSON.stringify(err));
       });
-    }
+    // } else {
+    //   resolve({
+    //     status: true
+    //   });
+    // }
   });
 }
