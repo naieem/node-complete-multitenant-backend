@@ -2,8 +2,8 @@
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
-// const fileUpload = require('express-fileupload');
-// var bodyParser = require('body-parser')
+const NodeCache = require( "node-cache" );
+global.AppCache = new NodeCache();
 var logger = require('morgan');
 var cors = require('cors');
 var mongoose = require('mongoose');
@@ -30,7 +30,6 @@ app.use(express.urlencoded({
     limit: '50mb'
 }));
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.use((req, res, next) => {
     let origin = req.headers.origin;
     origin=origin.replace("http://", "");
@@ -60,7 +59,7 @@ app.use(function (err, req, res, next) {
     console.log(err);
     // render the error page
     res.status(err.status || 500);
-    res.render('error');
+    // res.render('error');
 });
 getAllSiteConfiguration();
 module.exports = app;
