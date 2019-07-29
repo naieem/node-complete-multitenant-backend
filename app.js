@@ -31,7 +31,9 @@ app.use(express.urlencoded({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
-    let origin = req.headers.origin;
+    let origin = req.headers.origin || req.headers.serveris;
+    // console.log(req.headers);
+    // console.log(origin);
     origin=origin.replace("http://", "");
     if (!sites.includes(origin)) {
         res.json(200, {
@@ -97,7 +99,7 @@ function getAllSiteConfiguration() {
     });
 }
 if (process.env.NODE_ENV == 'production') {
-    const PORT = process.env.PORT ||5000
+    const PORT = process.env.PORT ||81
     app.listen(PORT, () => {
         console.log(`App listening to ${PORT}....`)
         console.log('Press Ctrl+C to quit.')
