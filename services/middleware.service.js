@@ -12,8 +12,8 @@ module.exports = {
  * @param {*} next 
  */
 function validatetoken(req, res, next) {
-    let origin = req.headers.origin;
-    origin = origin.replace("http://", "");
+    let origin = req.headers.origin || req.headers.serveris;
+    origin=origin.replace("http://", "");
     if (req.headers.authorization !='admin_credentials') {
         let token = req.headers && req.headers.authorization ? req.headers.authorization : (req.cookies && req.cookies[origin] ? req.cookies[origin] : null)
         if (token) {
