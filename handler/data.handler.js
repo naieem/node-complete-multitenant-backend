@@ -1201,7 +1201,7 @@ function generatePdf(req) {
     resulthtml += "<html>";
     conversion({
         html: resulthtml,
-        footer: '<div style="text-align:right;float:left;width:100%;margin-top:15px;">&copy; 2019 Secure Link Services AG. All Rights Reserved.</div>',
+        footer: '<div style="text-align:center;float:left;width:100%;margin-top:20px;font-size:12px;">&copy; 2019 Secure Link Services AG. All Rights Reserved.</div>',
         paperSize: {
           width: "12in",
           height: "12in"
