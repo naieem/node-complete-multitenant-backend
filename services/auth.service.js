@@ -1,5 +1,7 @@
 var bcrypt = require("bcryptjs");
 var jwt = require("jsonwebtoken");
+const axios = require("axios");
+var FormData = require("form-data");
 var globalConfig = require("../globalConfig");
 var tokenStorage = require("./tokenStorage.service");
 var dataHandler = require('../handler/data.handler');
@@ -24,7 +26,7 @@ module.exports = {
  * @param {*} personInfo
  */
 function register(userInfo, personInfo, request) {
-    userInfo['active']= false;
+    userInfo['active'] = false; // setting active status false at the first time of registration
     return new Promise(function (resolve, reject) {
         findUserByEmail(userInfo.username)
             .then(function (response) {
@@ -34,7 +36,7 @@ function register(userInfo, personInfo, request) {
                         message: "user already exists with this username"
                     });
                 } else {
-                    tables[origin]["user"].create(userInfo, function (err, result) {
+                    tables[origin]["user"].create(userInfo, (err, result) => {
                         if (err) reject(err);
                         else {
                             personInfo.tag = "Is-A-Person";
@@ -46,11 +48,44 @@ function register(userInfo, personInfo, request) {
                                 userInfo: request.userInfo
                             }
                             dataHandler.insert(personPayload).then((response) => {
-                                AppCache.set(personInfo.user_id,"inactive",60*5);
+                                // setting cache for account verification
+                                // this will work just as redis works
+                                // for storing temporary cache value
+                                AppCache.set(personInfo.user_id, "inactive", 60 * 5);
+                                // =============== sending new user registration mail ================= //
+                                let mailBody=`
+                                <h2>Hello ${personInfo.firstname} ${personInfo.lastname}</h2>
+                                <h3>Thank you for registering.</h3><p>To activate your account please click the link below</p>
+                                <p><a href="${request.headers.origin}/verifyAccount/${personInfo.user_id}">Activation link</a></p>
+                                <p><b>NB.</b>To remind you that the link will be deactivated within 5 mins</p>
+                                `;
+                                let mailPayload = new FormData();
+                                mailPayload.append('recipient', personInfo.email);
+                                mailPayload.append("text", mailBody);
+                                mailPayload.append("subject", "New user Registration");
+                                let contentType = mailPayload.getHeaders()["content-type"];
+                                axios({
+                                        method: "post",
+                                        url: globalConfig.mailServiceUrl,
+                                        data: mailPayload,
+                                        headers: {
+                                            "Content-Type": contentType
+                                        }
+                                    })
+                                    .then(response => {
+                                        if (response.data.status.accepted.length && !response.data.status.rejected.length) {
+                                            console.log('Registration mail sent succesfully with email ' + personInfo.email);
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.log('Error in sending registration mail with email ' + personInfo.email);
+                                        console.log(err);
+                                    });
+                                // =============== ends registration mail ============================ //
                                 resolve({
                                     status: true,
                                     personId: response.itemId,
-                                    userId:personInfo.user_id
+                                    userId: personInfo.user_id
                                 });
                             }).catch((err) => {
                                 resolve({
@@ -86,7 +121,7 @@ function register(userInfo, personInfo, request) {
 function login(username, password) {
     var userCriteria = {
         username: username,
-        active:true
+        active: true
     };
     return new Promise(function (resolve, reject) {
         tables[origin]["user"].find(userCriteria, function (err, docs) {
@@ -134,7 +169,7 @@ function generateToken(personData) {
         personId: personData._id,
         userId: personData.user_id,
         roles: personData.roles,
-        origin:origin
+        origin: origin
     };
     return jwt.sign(payload, secret, {
         expiresIn: tokenExpiryTime // expires in 5 mins
