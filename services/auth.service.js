@@ -33,7 +33,7 @@ function register(userInfo, personInfo, request) {
                 if (response) {
                     resolve({
                         status: false,
-                        message: "user already exists with this username"
+                        message: "User already exists with this Email"
                     });
                 } else {
                     tables[origin]["user"].create(userInfo, (err, result) => {
