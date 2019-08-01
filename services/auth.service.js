@@ -51,7 +51,7 @@ function register(userInfo, personInfo, request) {
                                 // setting cache for account verification
                                 // this will work just as redis works
                                 // for storing temporary cache value
-                                AppCache.set(personInfo.user_id, "inactive", 60 * 5);
+                                AppCache.set(personInfo.user_id, "inactive", 60 * globalConfig.verifyTokenTimeout);
                                 // =============== sending new user registration mail ================= //
                                 let verifyEmailUrl=AppCache.get(request.headers.origin).verifyEmailUrl;
                                 let mailBody=`
