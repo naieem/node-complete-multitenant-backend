@@ -92,6 +92,10 @@ function getAllSiteConfiguration() {
                 tableinfo[table.name] = connection.model(table.name, table.schema);
             });
             table[element.sitename] = tableinfo;
+            // setting verify email in cache
+            AppCache.set(element.sitename,{
+                verifyEmailUrl:element.verifyEmailUrl
+            });
             getAllTagValidator(tableinfo['tagvalidator'], element.sitename);
         });
         global.tables = table;

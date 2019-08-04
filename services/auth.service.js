@@ -33,7 +33,7 @@ function register(userInfo, personInfo, request) {
                 if (response) {
                     resolve({
                         status: false,
-                        message: "user already exists with this username"
+                        message: "User already exists with this Email"
                     });
                 } else {
                     tables[origin]["user"].create(userInfo, (err, result) => {
@@ -51,12 +51,13 @@ function register(userInfo, personInfo, request) {
                                 // setting cache for account verification
                                 // this will work just as redis works
                                 // for storing temporary cache value
-                                AppCache.set(personInfo.user_id, "inactive", 60 * 5);
+                                AppCache.set(personInfo.user_id, "inactive", 60 * globalConfig.verifyTokenTimeout);
                                 // =============== sending new user registration mail ================= //
+                                let verifyEmailUrl=AppCache.get(request.headers.origin).verifyEmailUrl;
                                 let mailBody=`
                                 <h2>Hello ${personInfo.firstname} ${personInfo.lastname}</h2>
                                 <h3>Thank you for registering.</h3><p>To activate your account please click the link below</p>
-                                <p><a href="${request.headers.origin}/verifyAccount/${personInfo.user_id}">Activation link</a></p>
+                                <p><a href="${verifyEmailUrl}/${personInfo.user_id}">Activation link</a></p>
                                 <p><b>NB.</b>To remind you that the link will be deactivated within 5 mins</p>
                                 `;
                                 let mailPayload = new FormData();
@@ -85,7 +86,8 @@ function register(userInfo, personInfo, request) {
                                 resolve({
                                     status: true,
                                     personId: response.itemId,
-                                    userId: personInfo.user_id
+                                    userId: personInfo.user_id,
+                                    message:'User registration succesfull'
                                 });
                             }).catch((err) => {
                                 resolve({
