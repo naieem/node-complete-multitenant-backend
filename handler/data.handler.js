@@ -170,20 +170,22 @@ function deleteData(request) {
   return new Promise(function (resolve, reject) {
     if (tables[origin][tablename]) {
       /* users permission checking condition added */
-      let permissionValueAdding = {
-        $or: [{
-            rolesAllowedToRead: {
-              $in: request.userInfo.roles
+      if(request.userInfo){
+        let permissionValueAdding = {
+          $or: [{
+              rolesAllowedToRead: {
+                $in: request.userInfo.roles
+              }
+            },
+            {
+              idsAllowedToRead: {
+                $in: request.userInfo.userId
+              }
             }
-          },
-          {
-            idsAllowedToRead: {
-              $in: request.userInfo.userId
-            }
-          }
-        ]
-      };
-      query = _.merge(query, permissionValueAdding);
+          ]
+        };
+        query = _.merge(query, permissionValueAdding);
+      }
       tables[origin][tablename].deleteMany(query, (err) => {
         if (!err) {
           resolve({
