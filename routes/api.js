@@ -60,18 +60,25 @@ router.post('/accountVerification', (req, res, next) => {
     AppCache.get(key, (error, result) => {
         if (error) {
             console.log(error);
-            res.status(500).json({
+            res.status(200).json({
                 status: false,
                 message: error
             });
         } else {
             if (!result) {
-                res.status(500).json({
+                res.status(200).json({
                     status: false,
                     message: "User activation failed"
                 });
-            } else if (result == "active") {
-                res.status(500).json({
+            }
+            else if(typeof(result) !="string" && result.password =="pending"){
+                res.status(200).json({
+                    status: false,
+                    message: "User is already activated"
+                });
+            }
+            else if (result == "active") {
+                res.status(200).json({
                     status: false,
                     message: "User is already activated"
                 });
@@ -92,7 +99,7 @@ router.post('/accountVerification', (req, res, next) => {
                             AppCache.del(key); // removing the key from cache
                             AppCache.set(key, {
                                 password: "pending"
-                            }, 60 * 5);
+                            }, 60 * globalConfig.activationLinkTimeout); // here 60 means 60 seconds that is 1 minute
                             res.status(200).json({
                                 status: true,
                                 message: "User Activation succesfull"
