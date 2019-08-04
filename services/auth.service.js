@@ -53,7 +53,7 @@ function register(userInfo, personInfo, request) {
                                 // for storing temporary cache value
                                 AppCache.set(personInfo.user_id, "inactive", 60 * globalConfig.verifyTokenTimeout);
                                 // =============== sending new user registration mail ================= //
-                                let verifyEmailUrl=AppCache.get(request.headers.origin).verifyEmailUrl;
+                                let verifyEmailUrl=AppCache.get(origin).verifyEmailUrl;
                                 let mailBody=`
                                 <h2>Hello ${personInfo.firstname} ${personInfo.lastname}</h2>
                                 <h3>Thank you for registering.</h3><p>To activate your account please click the link below</p>
