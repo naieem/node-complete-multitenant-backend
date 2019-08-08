@@ -58,7 +58,7 @@ function register(userInfo, personInfo, request) {
                                 <h2>Hello ${personInfo.firstname} ${personInfo.lastname}</h2>
                                 <h3>Thank you for registering.</h3><p>To activate your account please click the link below</p>
                                 <p><a href="${verifyEmailUrl}/${personInfo.user_id}">Activation link</a></p>
-                                <p><b>NB.</b>To remind you that the link will be deactivated within 5 mins</p>
+                                <p><b>NB.</b>To remind you that the link will be deactivated within 24 hours</p>
                                 `;
                                 let mailPayload = new FormData();
                                 mailPayload.append('recipient', personInfo.email);
