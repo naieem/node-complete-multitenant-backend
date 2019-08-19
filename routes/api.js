@@ -58,6 +58,8 @@ router.post('/accountVerification', (req, res, next) => {
     // var tablename = req.body.table;
     // var data = req.body.data;
     AppCache.get(key, (error, result) => {
+        console.log("account verification informatio found with key " + key);
+        console.log(result);
         if (error) {
             console.log(error);
             res.status(200).json({
@@ -70,14 +72,21 @@ router.post('/accountVerification', (req, res, next) => {
                     status: false,
                     message: "User activation failed"
                 });
-            }
-            else if(typeof(result) !="string" && result.password =="pending"){
+            } else if (typeof (result) != "string" && result.activation) {
+                AppCache.set(key, {
+                    password: "pending"
+                }, 60 * globalConfig.activationLinkTimeout); // here 60 means 60 seconds that is 1 minute
+
+                res.status(200).json({
+                    status: true,
+                    message: "User activation succesfull"
+                });
+            } else if (typeof (result) != "string" && result.password == "pending") {
                 res.status(200).json({
                     status: false,
                     message: "User is already activated"
                 });
-            }
-            else if (result == "active") {
+            } else if (result == "active") {
                 res.status(200).json({
                     status: false,
                     message: "User is already activated"
@@ -98,11 +107,12 @@ router.post('/accountVerification', (req, res, next) => {
                         if (response.ok) {
                             AppCache.del(key); // removing the key from cache
                             AppCache.set(key, {
-                                password: "pending"
+                                activation: true
                             }, 60 * globalConfig.activationLinkTimeout); // here 60 means 60 seconds that is 1 minute
+                            console.log("Account verification succesfull");
                             res.status(200).json({
                                 status: true,
-                                message: "User Activation succesfull"
+                                message: "User activation succesfull"
                             });
                         }
                     }
@@ -143,7 +153,7 @@ router.post('/setPassword', (req, res, next) => {
                                     "password": hash
                                 },
                                 (errr, response) => {
-                                    if (errr){
+                                    if (errr) {
                                         res.status(200).json({
                                             status: false,
                                             message: "Password setting error."
